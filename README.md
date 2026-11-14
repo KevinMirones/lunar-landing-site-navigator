@@ -57,6 +57,21 @@ npm start            # sirve API y web en http://localhost:8787
 
 Pruebas: `npm test`.
 
+### Compartir en la red local
+
+Para que otra persona en la misma red abra la herramienta desde su navegador:
+
+```bash
+npm run share      # compila y sirve todo en el puerto 8787
+npm run dev:lan    # o, con recarga en vivo, en el puerto 5173
+```
+
+El servidor muestra al arrancar la dirección que hay que compartir, del tipo `http://10.0.0.5:8787`. En Windows, el firewall debe permitir conexiones entrantes a Node.js en el perfil de red activo.
+
+## Documentación
+
+El [índice de documentación](docs/README.md) reúne el plan de la semana, las specs de cada función pendiente con su estado, y el historial de decisiones y hallazgos del proyecto.
+
 ## Estructura
 
 ```
@@ -70,6 +85,7 @@ src/lib/
   sites.ts       catálogo de sitios
 src/components/  Panorama, PolarMap (WebGL2), Globe (three.js), Timeline, Panels
 tests/           validación contra JPL Horizons y pruebas del terreno
+docs/            índice, plan, specs, historial y guion para el jurado
 ```
 
 ## Datos y créditos
