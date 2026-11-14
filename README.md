@@ -57,6 +57,23 @@ npm start            # sirve API y web en http://localhost:8787
 
 Pruebas: `npm test`.
 
+### Despliegue público
+
+Un único servicio Node sirve la API y la web. Vale cualquier alojamiento que ejecute Node, no solo archivos estáticos.
+
+| Ajuste | Valor |
+| --- | --- |
+| Compilación | `npm ci && npm run fetch-data && npm run build` |
+| Arranque | `npm start` |
+| Puerto | variable `PORT` |
+| Comprobación de salud | `/api/health` debe responder `"dem": true` |
+| Memoria | 256 MB bastan |
+| Detrás de un proxy | `TRUST_PROXY=1`, para que el límite de peticiones vea la dirección real del cliente |
+
+En público, `/api/jpl` admite 30 consultas por minuto y por dirección, y guarda las respuestas en caché. El servidor envía cabeceras de seguridad, incluida una política de contenido que solo permite recursos propios.
+
+Dirección pública: pendiente de desplegar.
+
 ### Compartir en la red local
 
 Para que otra persona en la misma red abra la herramienta desde su navegador:

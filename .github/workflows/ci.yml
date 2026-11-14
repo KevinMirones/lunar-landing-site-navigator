@@ -1,0 +1,22 @@
+# Runs on every push and pull request: the same checks as "Terminado significa" in docs/PLAN.md.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # Terrain tests skip themselves when the LOLA grid is not present.
+      - run: npm test
+      - run: npm run build
+      - run: npm run docs:check

@@ -1,7 +1,7 @@
 ---
 id: S03
 titulo: Integración continua y despliegue público
-estado: pendiente
+estado: en curso
 dia: 1
 prioridad: imprescindible
 depende: -
@@ -42,6 +42,22 @@ El proyecto solo funciona en una máquina. Para la entrega hace falta un enlace 
 - Cabeceras de seguridad básicas y sin listado de directorios.
 
 **Cambios pendientes de subir:** los scripts `share` y `dev:lan` y el aviso de la dirección de red entran con esta spec.
+
+## Estado
+
+Hecho y probado:
+
+- Flujo de integración continua en `.github/workflows/ci.yml`.
+- Límite de 30 peticiones por minuto en `/api/jpl`, con caché de respuestas ([rateLimit.js](../../server/rateLimit.js)).
+- Cabeceras de seguridad y política de contenido, comprobadas con la app compilada.
+- `server/app.js` separa la creación de la app del arranque, para poder probar la API.
+- Ajustes de despliegue documentados en el README.
+
+Pendiente, porque depende de decisiones y cuentas del equipo:
+
+- Primer push, para ver la integración continua en verde (criterios 1 y 2).
+- Elegir alojamiento y desplegar (criterios 3 y 5).
+- Decidir si el DEM entra en el repositorio; mientras tanto la compilación lo descarga con `npm run fetch-data`.
 
 ## Criterios de aceptación
 
