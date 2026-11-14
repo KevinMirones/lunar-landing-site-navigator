@@ -46,12 +46,12 @@ export interface SiteSeries extends TimeGrid {
 export const SUN_THRESHOLD = 0.02;
 export const EARTH_THRESHOLD = 0.5;
 
+// Room for six scenarios, the year calendar and a few recent edits.
+const FRAME_CACHE_SIZE = 32;
 const frameCache = new Map<string, FrameSeries>();
 
-export function frameSeries(grid: TimeGrid): FrameSeries {
-  const key = `${grid.t0}|${grid.stepMs}|${grid.n}`;
-  const hit = frameCache.get(key);
-  if (hit) return hit;
+/** Sun and Earth vectors for every instant of a grid. Costs about 14 microseconds per instant. */
+export function computeFrameSeries(grid: TimeGrid): FrameSeries {
   const sun = new Float64Array(grid.n * 3);
   const earth = new Float64Array(grid.n * 3);
   for (let i = 0; i < grid.n; i++) {
@@ -59,8 +59,16 @@ export function frameSeries(grid: TimeGrid): FrameSeries {
     sun.set(v.sun, i * 3);
     earth.set(v.earth, i * 3);
   }
-  const fs = { ...grid, sun, earth };
-  if (frameCache.size > 12) frameCache.delete(frameCache.keys().next().value!);
+  return { ...grid, sun, earth };
+}
+
+/** Cached `computeFrameSeries`: scenarios and sites that share a grid share the ephemeris. */
+export function frameSeries(grid: TimeGrid): FrameSeries {
+  const key = `${grid.t0}|${grid.stepMs}|${grid.n}`;
+  const hit = frameCache.get(key);
+  if (hit) return hit;
+  const fs = computeFrameSeries(grid);
+  if (frameCache.size >= FRAME_CACHE_SIZE) frameCache.delete(frameCache.keys().next().value!);
   frameCache.set(key, fs);
   return fs;
 }

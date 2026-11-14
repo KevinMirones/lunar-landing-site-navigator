@@ -1,6 +1,7 @@
 // Text-and-number panels: site list, live status, comparison table, year calendar.
 import { memo, useMemo, useState } from 'react';
 import { SUN_RADIUS_KM, moonFixedVectors, siteFrame, topocentric } from '../lib/ephemeris';
+import type { Scenario } from '../lib/scenario';
 import { nextEvent, type Horizon, type Metrics, type Sky } from '../lib/series';
 import { normLon, type Site } from '../lib/sites';
 import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
@@ -11,15 +12,18 @@ import { WindowStrip } from './Timeline';
 
 interface SiteListProps {
   sites: Site[];
-  selectedId: string;
-  pinned: string[];
+  /** Site of the active scenario. */
+  activeSiteId: string;
+  /** Site id of every scenario in the comparison (repeats allowed). */
+  inUse: string[];
+  canAdd: boolean;
   onSelect: (id: string) => void;
-  onTogglePin: (id: string) => void;
+  onCompare: (id: string) => void;
   onAdd: (lat: number, lon: number) => void;
   onRemove: (id: string) => void;
 }
 
-export const SiteList = memo(function SiteList({ sites, selectedId, pinned, onSelect, onTogglePin, onAdd, onRemove }: SiteListProps) {
+export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, canAdd, onSelect, onCompare, onAdd, onRemove }: SiteListProps) {
   const tr = useTr();
   const lang = useLang();
   const [lat, setLat] = useState('');
@@ -56,22 +60,27 @@ export const SiteList = memo(function SiteList({ sites, selectedId, pinned, onSe
             <h3>{g.title}</h3>
             <ul>
               {list.map((s) => {
-                const isPin = pinned.includes(s.id);
+                const count = inUse.filter((id) => id === s.id).length;
                 return (
-                  <li key={s.id} className={s.id === selectedId ? 'is-selected' : ''}>
-                    <button type="button" className="site-main" onClick={() => onSelect(s.id)} aria-current={s.id === selectedId}>
+                  <li key={s.id} className={s.id === activeSiteId ? 'is-selected' : ''}>
+                    <button type="button" className="site-main" onClick={() => onSelect(s.id)} aria-current={s.id === activeSiteId}>
                       <span className="site-name">{s.name}</span>
                       <span className="site-meta">{s.tag[lang]}</span>
                       <span className="site-meta num">{fmtLatLon(s.lat, s.lon)}</span>
                     </button>
                     <button
                       type="button"
-                      className={`pin${isPin ? ' is-on' : ''}`}
-                      aria-pressed={isPin}
-                      title={isPin ? tr('Quitar de la comparación', 'Remove from comparison') : tr('Añadir a la comparación', 'Add to comparison')}
-                      onClick={() => onTogglePin(s.id)}
+                      className={`pin${count ? ' is-on' : ''}`}
+                      disabled={!canAdd}
+                      title={
+                        canAdd
+                          ? tr('Añadir un escenario con este sitio', 'Add a scenario with this site')
+                          : tr('Hay seis escenarios, el máximo. Elimina uno para añadir otro.', 'There are six scenarios, the maximum. Remove one to add another.')
+                      }
+                      onClick={() => onCompare(s.id)}
                     >
-                      {isPin ? tr('Comparando', 'Comparing') : tr('Comparar', 'Compare')}
+                      {tr('Comparar', 'Compare')}
+                      {count > 0 && ` (${count})`}
                     </button>
                     {s.group === 'custom' && (
                       <button type="button" className="pin" title={tr('Eliminar punto', 'Delete point')} onClick={() => onRemove(s.id)}>
@@ -321,43 +330,53 @@ function JplCheck({ site, now }: { site: Site; now: number }) {
 
 // ---------------------------------------------------------------- Comparison
 
-export interface Analysis {
+export interface ScenarioRow {
+  scenario: Scenario;
   site: Site;
-  horizon: Horizon;
-  metrics: Metrics;
+  /** Null while the terrain horizon of the site is still loading. */
+  metrics: Metrics | null;
 }
 
 interface CompareProps {
-  rows: Analysis[];
-  selectedId: string;
-  t0: number;
-  t1: number;
-  now: number;
-  onSelect: (id: string) => void;
+  rows: ScenarioRow[];
+  activeId: string;
+  /** Length of the shared mission-day axis: the longest scenario. */
+  spanMs: number;
+  /** Time since landing shown by the cursor, the same mission day on every row. */
+  elapsed: number;
+  canAdd: boolean;
+  onActivate: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onRemove: (id: string) => void;
 }
 
-export function Compare({ rows, selectedId, t0, t1, now, onSelect }: CompareProps) {
+export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, onDuplicate, onRemove }: CompareProps) {
   const tr = useTr();
+  const lang = useLang();
   const best = useMemo(() => {
-    const max = (f: (m: Metrics) => number) => Math.max(...rows.map((r) => f(r.metrics)));
-    const min = (f: (m: Metrics) => number) => Math.min(...rows.map((r) => f(r.metrics)));
-    return { sun: max((m) => m.sunShare), dark: min((m) => m.longestDarkMs), earth: max((m) => m.earthShare), both: max((m) => m.bothShare), score: max((m) => m.score) };
+    const ms = rows.map((r) => r.metrics).filter((m): m is Metrics => m !== null);
+    const max = (f: (m: Metrics) => number) => Math.max(...ms.map(f));
+    const min = (f: (m: Metrics) => number) => Math.min(...ms.map(f));
+    return { n: ms.length, sun: max((m) => m.sunShare), dark: min((m) => m.longestDarkMs), earth: max((m) => m.earthShare), both: max((m) => m.bothShare), score: max((m) => m.score) };
   }, [rows]);
-  const mark = (cond: boolean) => (cond && rows.length > 1 ? 'is-best' : '');
+  const mark = (cond: boolean) => (cond && best.n > 1 ? 'is-best' : '');
+  const spanDays = Math.round(spanMs / 86400e3);
 
-  if (!rows.length) {
-    return <p className="empty">{tr('Pulsa «Comparar» en dos o más sitios de la lista para verlos lado a lado.', 'Press “Compare” on two or more sites in the list to see them side by side.')}</p>;
-  }
   return (
     <div className="compare-scroll">
       <table className="compare">
         <thead>
           <tr>
             <th>{tr('Sitio', 'Site')}</th>
+            <th>{tr('Alunizaje', 'Landing')}</th>
             <th className="col-strip">
-              {tr('Ventanas en la misión', 'Windows across the mission')}
+              {tr('Ventanas por día de misión', 'Windows by mission day')}
               <span className="legend">
                 <i className="swatch sun" /> {tr('luz', 'light')} <i className="swatch earth" /> {tr('enlace', 'link')}
+              </span>
+              <span className="strip-axis num">
+                <span>{tr('día 0', 'day 0')}</span>
+                <span>{tr(`día ${spanDays}`, `day ${spanDays}`)}</span>
               </span>
             </th>
             <th>{tr('Luz solar', 'Sunlight')}</th>
@@ -365,25 +384,56 @@ export function Compare({ rows, selectedId, t0, t1, now, onSelect }: CompareProp
             <th>{tr('Enlace', 'Link')}</th>
             <th>{tr('Ambos', 'Both')}</th>
             <th>{tr('Índice', 'Index')}</th>
+            <th aria-label={tr('Acciones', 'Actions')} />
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ site, metrics: m }) => (
-            <tr key={site.id} className={site.id === selectedId ? 'is-selected' : ''} onClick={() => onSelect(site.id)}>
+          {rows.map(({ scenario: sc, site, metrics: m }) => (
+            <tr key={sc.id} className={sc.id === activeId ? 'is-selected' : ''} onClick={() => onActivate(sc.id)}>
               <th scope="row">
-                <button type="button" onClick={() => onSelect(site.id)}>
+                <button type="button" onClick={() => onActivate(sc.id)} aria-current={sc.id === activeId}>
                   {site.name}
                 </button>
                 <span className="num">{fmtLatLon(site.lat, site.lon)}</span>
               </th>
-              <td className="col-strip">
-                <WindowStrip metrics={m} t0={t0} t1={t1} now={now} />
+              <td className="col-when">
+                <span className="num">{fmtDate(sc.landing, lang)}</span>
+                <span className="sub num">
+                  {sc.durationDays} d, {tr('mástil', 'mast')} {sc.mast} m
+                </span>
               </td>
-              <td className={`num ${mark(m.sunShare === best.sun)}`}>{pct(m.sunShare)}</td>
-              <td className={`num ${mark(m.longestDarkMs === best.dark)}`}>{m.longestDarkMs > 0 ? fmtDuration(m.longestDarkMs) : tr('ninguna', 'none')}</td>
-              <td className={`num ${mark(m.earthShare === best.earth)}`}>{pct(m.earthShare)}</td>
-              <td className={`num ${mark(m.bothShare === best.both)}`}>{pct(m.bothShare)}</td>
-              <td className={`num score-cell ${mark(m.score === best.score)}`}>{m.score}</td>
+              <td className="col-strip">
+                {m ? (
+                  <WindowStrip metrics={m} landing={sc.landing} spanMs={spanMs} durationMs={sc.durationDays * 86400e3} elapsed={elapsed} />
+                ) : (
+                  <span className="sub">{tr('Calculando el horizonte…', 'Computing the horizon…')}</span>
+                )}
+              </td>
+              <td className={`num ${m ? mark(m.sunShare === best.sun) : ''}`}>{m ? pct(m.sunShare) : '—'}</td>
+              <td className={`num ${m ? mark(m.longestDarkMs === best.dark) : ''}`}>{m ? (m.longestDarkMs > 0 ? fmtDuration(m.longestDarkMs) : tr('ninguna', 'none')) : '—'}</td>
+              <td className={`num ${m ? mark(m.earthShare === best.earth) : ''}`}>{m ? pct(m.earthShare) : '—'}</td>
+              <td className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
+              <td className={`num score-cell ${m ? mark(m.score === best.score) : ''}`}>{m ? m.score : '—'}</td>
+              <td className="row-actions" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  disabled={!canAdd}
+                  title={canAdd ? tr('Crea una copia siete días después', 'Creates a copy seven days later') : tr('Hay seis escenarios, el máximo.', 'There are six scenarios, the maximum.')}
+                  onClick={() => onDuplicate(sc.id)}
+                >
+                  {tr('Duplicar con otra fecha', 'Duplicate with another date')}
+                </button>
+                <button
+                  type="button"
+                  className="icon"
+                  disabled={rows.length <= 1}
+                  aria-label={tr(`Eliminar el escenario de ${site.name}`, `Remove the ${site.name} scenario`)}
+                  title={rows.length <= 1 ? tr('Siempre queda un escenario.', 'One scenario always remains.') : tr('Eliminar escenario', 'Remove scenario')}
+                  onClick={() => onRemove(sc.id)}
+                >
+                  ×
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -398,7 +448,8 @@ interface CalendarProps {
   daily: { sun: Float32Array; earth: Float32Array; t0: number; days: number };
   landing: number;
   durationDays: number;
-  onPickDay: (t: number) => void;
+  /** `asNew` is true for a shift-click: add a scenario on that day instead of moving the active one. */
+  onPickDay: (t: number, asNew: boolean) => void;
 }
 
 const DAY = 86400e3;
@@ -441,7 +492,7 @@ export const YearCalendar = memo(function YearCalendar({ daily, landing, duratio
       onPointerLeave={() => setHover(null)}
       onClick={(e) => {
         const d = dayOf(e as unknown as React.PointerEvent);
-        if (d !== null) onPickDay(daily.t0 + d * DAY);
+        if (d !== null) onPickDay(daily.t0 + d * DAY, e.shiftKey);
       }}
     >
       {size.w > 0 && (
@@ -476,8 +527,8 @@ export const YearCalendar = memo(function YearCalendar({ daily, landing, duratio
       )}
       <p className="cal-readout num">
         {hover !== null
-          ? `${fmtDate(daily.t0 + hover * DAY, lang, false)}: ${tr('luz', 'light')} ${pct(daily.sun[hover])}, ${tr('enlace', 'link')} ${pct(daily.earth[hover])}. ${tr('Clic para aterrizar este día.', 'Click to land on this day.')}`
-          : tr('El recuadro marca la misión actual. Haz clic en cualquier día para mover el alunizaje.', 'The box marks the current mission. Click any day to move the landing.')}
+          ? `${fmtDate(daily.t0 + hover * DAY, lang, false)}: ${tr('luz', 'light')} ${pct(daily.sun[hover])}, ${tr('enlace', 'link')} ${pct(daily.earth[hover])}. ${tr('Clic para aterrizar este día; Mayús + clic lo añade como escenario.', 'Click to land on this day; Shift + click adds it as a scenario.')}`
+          : tr('El recuadro marca el escenario activo. Clic en un día para mover el alunizaje; Mayús + clic para añadirlo como escenario.', 'The box marks the active scenario. Click a day to move the landing; Shift + click to add it as a scenario.')}
       </p>
     </div>
   );

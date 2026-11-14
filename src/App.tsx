@@ -1,27 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { moonFixedVectors } from './lib/ephemeris';
-import { dailyShares, frameSeries, metrics as computeMetrics, siteSeries, skyAt, type Horizon, type TimeGrid } from './lib/series';
+import {
+  DURATIONS,
+  MASTS,
+  MAX_SCENARIOS,
+  addScenario,
+  analysisKey,
+  analyzeScenario,
+  duplicateScenario,
+  maxSpanMs,
+  removeScenario,
+  updateScenario,
+  type Scenario,
+  type ScenarioAnalysis,
+} from './lib/scenario';
+import { dailyShares, frameSeries, siteSeries, skyAt, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
 import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, type Heightmap } from './lib/util';
 import { Globe } from './components/Globe';
-import { Compare, SiteList, Status, YearCalendar, type Analysis } from './components/Panels';
+import { Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
 import { PolarMap } from './components/PolarMap';
 import { Timeline } from './components/Timeline';
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
-const DURATIONS = [14, 30, 60, 90];
-const MASTS = [2, 10, 50];
 const SPEEDS = [0.5, 2, 6]; // mission days per second
-const MAX_PINNED = 5;
+const FALLBACK_SITE = CATALOG[0];
+
+type LoadedHorizon = Horizon & { offline?: boolean };
 
 const todayUtc = () => Math.floor(Date.now() / DAY) * DAY;
 const monthStart = (t: number) => {
   const d = new Date(t);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
 };
-const horizonKey = (s: Site, mast: number) => `${s.lat}|${s.lon}|${mast}`;
+const horizonKey = (site: Site, mast: number) => `${site.lat}|${site.lon}|${mast}`;
+
+function defaultScenarios(): Scenario[] {
+  const landing = todayUtc();
+  return ['ridge', 'shackleton-floor', 'malapert', 'im2'].map((siteId, i) => ({ id: `e${i + 1}`, siteId, landing, durationDays: 30, mast: 2 }));
+}
 
 export default function App() {
   const [lang, setLang] = useState<Lang>('es');
@@ -30,25 +49,28 @@ export default function App() {
   const [custom, setCustom] = useState<Site[]>([]);
   const customCount = useRef(0);
   const sites = useMemo(() => [...CATALOG, ...custom], [custom]);
-  const [selectedId, setSelectedId] = useState('ridge');
-  const [pinned, setPinned] = useState<string[]>(['ridge', 'shackleton-floor', 'malapert', 'im2']);
+  const siteOf = useCallback((id: string) => sites.find((s) => s.id === id) ?? FALLBACK_SITE, [sites]);
 
-  const [landing, setLanding] = useState(todayUtc);
-  const [durationDays, setDurationDays] = useState(30);
-  const [now, setNow] = useState(landing);
+  const [scenarios, setScenarios] = useState<Scenario[]>(defaultScenarios);
+  const [activeId, setActiveId] = useState('e1');
+  /** Time since the active scenario's landing; kept when switching scenario so rows compare the same mission day. */
+  const [elapsed, setElapsed] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
-  const [mast, setMast] = useState(2);
-  const [yearStart, setYearStart] = useState(() => monthStart(landing));
 
   const [mapView, setMapView] = useState<'polar' | 'globe'>('polar');
   const [mapMode, setMapMode] = useState<'sun' | 'earth'>('sun');
   const [heightmap, setHeightmap] = useState<Heightmap | null | 'loading'>('loading');
-  const [horizons, setHorizons] = useState<Record<string, Horizon & { offline?: boolean }>>({});
+  const [horizons, setHorizons] = useState<Record<string, LoadedHorizon>>({});
   const inflight = useRef(new Set<string>());
 
-  const selected = sites.find((s) => s.id === selectedId) ?? sites[0];
-  const windowEnd = landing + durationDays * DAY;
+  const active = scenarios.find((s) => s.id === activeId) ?? scenarios[0];
+  const site = siteOf(active.siteId);
+  const { landing, durationDays, mast } = active;
+  const durationMs = durationDays * DAY;
+  const now = landing + Math.min(elapsed, durationMs);
+  const windowEnd = landing + durationMs;
+  const [yearStart, setYearStart] = useState(() => monthStart(landing));
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -56,59 +78,61 @@ export default function App() {
   useEffect(() => {
     fetchHeightmap().then(setHeightmap);
   }, []);
-
-  // Terrain horizons for the selected site and every compared site.
-  const needed = useMemo(() => {
-    const ids = new Set([selectedId, ...pinned]);
-    return sites.filter((s) => ids.has(s.id));
-  }, [sites, selectedId, pinned]);
   useEffect(() => {
-    for (const s of needed) {
-      const key = horizonKey(s, mast);
+    if (active.id !== activeId) setActiveId(active.id);
+  }, [active.id, activeId]);
+
+  // Terrain horizon for every (site, mast) pair in use.
+  useEffect(() => {
+    for (const sc of scenarios) {
+      const s = siteOf(sc.siteId);
+      const key = horizonKey(s, sc.mast);
       if (horizons[key] || inflight.current.has(key)) continue;
       inflight.current.add(key);
-      fetchHorizon(s.lat, s.lon, mast).then((h) => {
+      fetchHorizon(s.lat, s.lon, sc.mast).then((h) => {
         inflight.current.delete(key);
         setHorizons((prev) => ({ ...prev, [key]: h }));
       });
     }
-  }, [needed, mast, horizons]);
+  }, [scenarios, siteOf, horizons]);
 
-  // Mission analysis: one shared ephemeris grid, one series per site.
-  const grid: TimeGrid = useMemo(() => {
-    const stepMs = durationDays <= 30 ? HOUR / 2 : HOUR;
-    return { t0: landing, stepMs, n: Math.round((durationDays * DAY) / stepMs) + 1 };
-  }, [landing, durationDays]);
+  // One analysis per scenario, recomputed only when that scenario or its horizon changes.
+  const cache = useRef(new Map<string, { horizon: Horizon; analysis: ScenarioAnalysis }>());
   const analyses = useMemo(() => {
-    const frame = frameSeries(grid);
-    const out = new Map<string, Analysis & { series: ReturnType<typeof siteSeries> }>();
-    for (const s of needed) {
-      const horizon = horizons[horizonKey(s, mast)];
+    const out = new Map<string, ScenarioAnalysis & { horizon: LoadedHorizon }>();
+    const live = new Set<string>();
+    for (const sc of scenarios) {
+      const s = siteOf(sc.siteId);
+      const horizon = horizons[horizonKey(s, sc.mast)];
       if (!horizon) continue;
-      const series = siteSeries(s.lat, s.lon, horizon, frame);
-      out.set(s.id, { site: s, horizon, series, metrics: computeMetrics(series) });
+      const key = analysisKey(sc, s);
+      live.add(key);
+      let hit = cache.current.get(key);
+      if (!hit || hit.horizon !== horizon) {
+        hit = { horizon, analysis: analyzeScenario(sc, s, horizon) };
+        cache.current.set(key, hit);
+      }
+      out.set(sc.id, { ...hit.analysis, horizon });
     }
+    for (const key of cache.current.keys()) if (!live.has(key)) cache.current.delete(key);
     return out;
-  }, [grid, needed, horizons, mast]);
-  const current = analyses.get(selected.id);
-  const selectedHorizon = horizons[horizonKey(selected, mast)];
+  }, [scenarios, siteOf, horizons]);
+  const current = analyses.get(active.id);
+  const horizon = horizons[horizonKey(site, mast)];
 
-  // Twelve months of daily conditions for the selected site.
+  // Twelve months of daily conditions for the active site.
   useEffect(() => {
     if (landing < yearStart || landing > yearStart + 330 * DAY) setYearStart(monthStart(landing));
   }, [landing, yearStart]);
   const daily = useMemo(() => {
-    if (!selectedHorizon) return null;
+    if (!horizon) return null;
     const yearGrid: TimeGrid = { t0: yearStart, stepMs: 2 * HOUR, n: 366 * 12 };
-    return dailyShares(siteSeries(selected.lat, selected.lon, selectedHorizon, frameSeries(yearGrid)));
-  }, [selected, selectedHorizon, yearStart]);
+    return dailyShares(siteSeries(site.lat, site.lon, horizon, frameSeries(yearGrid)));
+  }, [site, horizon, yearStart]);
 
   // The sky right now.
   const vectors = useMemo(() => moonFixedVectors(new Date(now)), [now]);
-  const sky = useMemo(
-    () => (selectedHorizon ? skyAt(selected.lat, selected.lon, selectedHorizon, vectors.sun, vectors.earth) : null),
-    [selected, selectedHorizon, vectors],
-  );
+  const sky = useMemo(() => (horizon ? skyAt(site.lat, site.lon, horizon, vectors.sun, vectors.earth) : null), [site, horizon, vectors]);
 
   // Playback.
   useEffect(() => {
@@ -118,64 +142,121 @@ export default function App() {
     const tick = (t: number) => {
       const dt = Math.min(100, t - last);
       last = t;
-      setNow((n) => {
-        const next = n + (dt / 1000) * speed * DAY;
-        return next > windowEnd ? landing : next;
+      setElapsed((e) => {
+        const next = e + (dt / 1000) * speed * DAY;
+        return next > durationMs ? 0 : next;
       });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, speed, landing, windowEnd]);
-
-  const changeLanding = useCallback((t: number) => {
-    if (!Number.isFinite(t)) return;
-    setLanding(t);
-    setNow(t);
-  }, []);
+  }, [playing, speed, durationMs]);
   useEffect(() => {
-    setNow((n) => Math.min(Math.max(n, landing), windowEnd));
-  }, [landing, windowEnd]);
+    setElapsed((e) => Math.min(e, durationMs));
+  }, [durationMs]);
 
-  const select = useCallback(
-    (id: string) => {
-      setSelectedId(id);
-      const s = sites.find((x) => x.id === id);
-      if (s) setMapView(s.lat <= -80 ? 'polar' : 'globe');
+  // ---- editing the active scenario
+  const editActive = useCallback((patch: Partial<Omit<Scenario, 'id'>>) => setScenarios((list) => updateScenario(list, active.id, patch)), [active.id]);
+  const changeLanding = useCallback(
+    (t: number) => {
+      if (!Number.isFinite(t)) return;
+      editActive({ landing: t });
+      setElapsed(0);
     },
-    [sites],
+    [editActive],
   );
-  const addSite = useCallback((lat: number, lon: number) => {
-    const s = customSite(lat, lon, ++customCount.current);
-    setCustom((c) => [...c, s]);
-    setSelectedId(s.id);
-    setMapView(s.lat <= -80 ? 'polar' : 'globe');
-  }, []);
-  // A map click moves the current scratch point instead of piling up new ones.
+  const showOnMap = useCallback((s: Site) => setMapView(s.lat <= -80 ? 'polar' : 'globe'), []);
+  const selectSite = useCallback(
+    (id: string) => {
+      editActive({ siteId: id });
+      showOnMap(siteOf(id));
+    },
+    [editActive, showOnMap, siteOf],
+  );
+
+  // ---- scenarios
+  const canAdd = scenarios.length < MAX_SCENARIOS;
+  const append = useCallback(
+    (fields: Omit<Scenario, 'id'>) => {
+      const { list, added } = addScenario(scenarios, fields);
+      if (!added) return;
+      setScenarios(list);
+      setActiveId(added.id);
+      showOnMap(siteOf(added.siteId));
+    },
+    [scenarios, showOnMap, siteOf],
+  );
+  const compareSite = useCallback((siteId: string) => append({ siteId, landing, durationDays, mast }), [append, landing, durationDays, mast]);
+  const duplicate = useCallback(
+    (id: string) => {
+      const { list, added } = duplicateScenario(scenarios, id);
+      if (!added) return;
+      setScenarios(list);
+      setActiveId(added.id);
+    },
+    [scenarios],
+  );
+  const remove = useCallback(
+    (id: string) => {
+      const next = removeScenario(scenarios, id, active.id);
+      setScenarios(next.list);
+      setActiveId(next.activeId);
+    },
+    [scenarios, active.id],
+  );
+  const activate = useCallback(
+    (id: string) => {
+      setActiveId(id);
+      const sc = scenarios.find((s) => s.id === id);
+      if (sc) showOnMap(siteOf(sc.siteId));
+    },
+    [scenarios, showOnMap, siteOf],
+  );
+  const pickDay = useCallback(
+    (t: number, asNew: boolean) => (asNew ? append({ siteId: active.siteId, landing: t, durationDays, mast }) : changeLanding(t)),
+    [append, changeLanding, active.siteId, durationDays, mast],
+  );
+
+  // ---- custom points
+  const addSite = useCallback(
+    (lat: number, lon: number) => {
+      const s = customSite(lat, lon, ++customCount.current);
+      setCustom((c) => [...c, s]);
+      editActive({ siteId: s.id });
+      showOnMap(s);
+    },
+    [editActive, showOnMap],
+  );
+  // A map click moves the active scratch point instead of piling up new ones.
   const pick = useCallback(
     (lat: number, lon: number) => {
-      if (selected.group === 'custom' && !pinned.includes(selected.id)) {
-        const moved = { ...customSite(lat, lon, 0), id: selected.id, name: selected.name };
-        setCustom((c) => c.map((s) => (s.id === selected.id ? moved : s)));
+      const usedElsewhere = scenarios.some((sc) => sc.siteId === site.id && sc.id !== active.id);
+      if (site.group === 'custom' && !usedElsewhere) {
+        const moved = { ...customSite(lat, lon, 0), id: site.id, name: site.name };
+        setCustom((c) => c.map((s) => (s.id === site.id ? moved : s)));
       } else {
         const s = customSite(lat, lon, ++customCount.current);
         setCustom((c) => [...c, s]);
-        setSelectedId(s.id);
+        editActive({ siteId: s.id });
       }
     },
-    [selected, pinned],
-  );
-  const togglePin = useCallback(
-    (id: string) => setPinned((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_PINNED ? [...p.slice(1), id] : [...p, id])),
-    [],
+    [scenarios, site, active.id, editActive],
   );
   const removeSite = useCallback((id: string) => {
     setCustom((c) => c.filter((s) => s.id !== id));
-    setPinned((p) => p.filter((x) => x !== id));
-    setSelectedId((sel) => (sel === id ? 'ridge' : sel));
+    // Scenarios on that point go with it; one scenario always survives, moved to the default site.
+    setScenarios((list) => {
+      const kept = list.filter((sc) => sc.siteId !== id);
+      return kept.length ? kept : [{ ...list[0], siteId: FALLBACK_SITE.id }];
+    });
   }, []);
 
-  const compareRows = pinned.map((id) => analyses.get(id)).filter((a): a is NonNullable<typeof a> => !!a);
+  const rows: ScenarioRow[] = useMemo(
+    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null })),
+    [scenarios, siteOf, analyses],
+  );
+  const inUse = useMemo(() => scenarios.map((s) => s.siteId), [scenarios]);
+  const span = maxSpanMs(scenarios);
   const polarAvailable = heightmap && heightmap !== 'loading';
 
   return (
@@ -186,7 +267,7 @@ export default function App() {
             <span className="wordmark">LUMINA</span>
             <span className="tagline">{tr('Luz y enlace para alunizar en el polo sur', 'Light and link for landing at the lunar south pole')}</span>
           </div>
-          <div className="controls">
+          <div className="controls" role="group" aria-label={tr('Escenario activo', 'Active scenario')}>
             <label>
               {tr('Alunizaje (UTC)', 'Landing (UTC)')}
               <input type="datetime-local" value={toInput(landing)} onChange={(e) => changeLanding(fromInput(e.target.value))} />
@@ -195,7 +276,7 @@ export default function App() {
               <legend>{tr('Duración', 'Duration')}</legend>
               <div className="segmented">
                 {DURATIONS.map((d) => (
-                  <button key={d} type="button" aria-pressed={d === durationDays} onClick={() => setDurationDays(d)}>
+                  <button key={d} type="button" aria-pressed={d === durationDays} onClick={() => editActive({ durationDays: d })}>
                     {d} d
                   </button>
                 ))}
@@ -205,7 +286,7 @@ export default function App() {
               <legend>{tr('Altura del mástil', 'Mast height')}</legend>
               <div className="segmented">
                 {MASTS.map((m) => (
-                  <button key={m} type="button" aria-pressed={m === mast} onClick={() => setMast(m)}>
+                  <button key={m} type="button" aria-pressed={m === mast} onClick={() => editActive({ mast: m })}>
                     {m} m
                   </button>
                 ))}
@@ -225,12 +306,12 @@ export default function App() {
         <section className="hero" aria-label={tr('Vista desde el sitio', 'View from the site')}>
           <div className="hero-head">
             <h1>
-              {tr('El cielo desde', 'The sky from')} {selected.name}
+              {tr('El cielo desde', 'The sky from')} {site.name}
             </h1>
             <p className="num">{fmtDate(now, lang)}</p>
           </div>
-          {selectedHorizon && sky ? (
-            <Panorama horizon={selectedHorizon} sky={sky} series={current?.series ?? null} />
+          {horizon && sky ? (
+            <Panorama horizon={horizon} sky={sky} series={current?.series ?? null} />
           ) : (
             <div className="panorama loading">{tr('Calculando el horizonte del terreno…', 'Computing the terrain horizon…')}</div>
           )}
@@ -238,7 +319,7 @@ export default function App() {
 
         <div className="workspace">
           <aside className="col-sites">
-            <SiteList sites={sites} selectedId={selected.id} pinned={pinned} onSelect={select} onTogglePin={togglePin} onAdd={addSite} onRemove={removeSite} />
+            <SiteList sites={sites} activeSiteId={site.id} inUse={inUse} canAdd={canAdd} onSelect={selectSite} onCompare={compareSite} onAdd={addSite} onRemove={removeSite} />
           </aside>
 
           <section className="col-map">
@@ -264,9 +345,9 @@ export default function App() {
             </div>
             <div className="map-body">
               {mapView === 'globe' ? (
-                <Globe sunDir={vectors.sun} earthDir={vectors.earth} sites={sites} selectedId={selected.id} pinned={pinned} onSelect={select} onPick={pick} />
+                <Globe sunDir={vectors.sun} earthDir={vectors.earth} sites={sites} selectedId={site.id} pinned={inUse} onSelect={selectSite} onPick={pick} />
               ) : polarAvailable ? (
-                <PolarMap hm={heightmap} sunDir={vectors.sun} earthDir={vectors.earth} mode={mapMode} sites={sites} selectedId={selected.id} pinned={pinned} onSelect={select} onPick={pick} />
+                <PolarMap hm={heightmap} sunDir={vectors.sun} earthDir={vectors.earth} mode={mapMode} sites={sites} selectedId={site.id} pinned={inUse} onSelect={selectSite} onPick={pick} />
               ) : (
                 <div className="map-empty">
                   {heightmap === 'loading'
@@ -278,8 +359,8 @@ export default function App() {
           </section>
 
           <aside className="col-status">
-            {selectedHorizon && sky && current ? (
-              <Status site={selected} horizon={selectedHorizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} />
+            {horizon && sky && current ? (
+              <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} />
             ) : (
               <p className="empty">{tr('Calculando…', 'Computing…')}</p>
             )}
@@ -300,13 +381,13 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              <button type="button" onClick={() => setNow(landing)}>
+              <button type="button" onClick={() => setElapsed(0)}>
                 {tr('Volver al alunizaje', 'Back to landing')}
               </button>
             </div>
           </div>
-          {current && selectedHorizon ? (
-            <Timeline series={current.series} horizon={selectedHorizon} metrics={current.metrics} now={now} onScrub={setNow} />
+          {current && horizon ? (
+            <Timeline series={current.series} horizon={horizon} metrics={current.metrics} now={now} onScrub={(t) => setElapsed(t - landing)} />
           ) : (
             <p className="empty">{tr('Calculando…', 'Computing…')}</p>
           )}
@@ -314,18 +395,18 @@ export default function App() {
 
         <section className="lower">
           <div className="lower-block">
-            <h2>{tr('Comparar sitios', 'Compare sites')}</h2>
+            <h2>{tr('Comparar escenarios', 'Compare scenarios')}</h2>
             <p className="lede">
               {tr(
-                'Misma fecha y duración para todos. Unos kilómetros de diferencia cambian por completo la energía y las comunicaciones.',
-                'Same date and duration for all. A few kilometres of difference completely change power and communications.',
+                'Un escenario es un sitio con su fecha, duración y mástil. Compara sitios distintos o el mismo sitio en otra fecha: unos kilómetros o unos días lo cambian todo.',
+                'A scenario is a site with its date, duration and mast. Compare different sites or the same site on another date: a few kilometres or a few days change everything.',
               )}
             </p>
-            <Compare rows={compareRows} selectedId={selected.id} t0={landing} t1={windowEnd} now={now} onSelect={select} />
+            <Compare rows={rows} activeId={active.id} spanMs={span} elapsed={Math.min(elapsed, durationMs)} canAdd={canAdd} onActivate={activate} onDuplicate={duplicate} onRemove={remove} />
           </div>
           <div className="lower-block">
             <h2>
-              {tr('Mejores fechas en', 'Best dates at')} {selected.name}
+              {tr('Mejores fechas en', 'Best dates at')} {site.name}
             </h2>
             <p className="lede">
               {tr(
@@ -333,7 +414,7 @@ export default function App() {
                 'Twelve months, day by day. The stronger the colour, the more hours of light or link. Useful when a delay forces a replan.',
               )}
             </p>
-            {daily ? <YearCalendar daily={daily} landing={landing} durationDays={durationDays} onPickDay={changeLanding} /> : <p className="empty">{tr('Calculando…', 'Computing…')}</p>}
+            {daily ? <YearCalendar daily={daily} landing={landing} durationDays={durationDays} onPickDay={pickDay} /> : <p className="empty">{tr('Calculando…', 'Computing…')}</p>}
           </div>
         </section>
 
