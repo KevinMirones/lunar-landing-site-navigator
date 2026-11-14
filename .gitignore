@@ -6,4 +6,6 @@ dist
 
 # LOLA elevation model (28 MB). Download it with: npm run fetch-data
 server/data/*.img
+# Published illumination maps used by: npm run validate
+server/data/published/
 *.part

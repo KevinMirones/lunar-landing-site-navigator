@@ -1,6 +1,7 @@
 // Mission timeline: how far the Sun and Earth sit above the local terrain
 // horizon across the mission, with the resulting power and link windows.
 import { useMemo } from 'react';
+import { stripLayout } from '../lib/scenario';
 import { horizonAt, type Horizon, type Interval, type Metrics, type SiteSeries } from '../lib/series';
 import { deg, fmtDate, useLang, useSize, useTr } from '../lib/util';
 
@@ -149,23 +150,27 @@ export function Timeline({ series, horizon, metrics, now, onScrub }: Props) {
   );
 }
 
-/** Compact two-row window strip used by the site comparison table. */
-export function WindowStrip({ metrics, t0, t1, now }: { metrics: Metrics; t0: number; t1: number; now: number }) {
-  const p = (t: number) => `${(((t - t0) / (t1 - t0)) * 100).toFixed(2)}%`;
-  const w = (iv: Interval) => `${Math.max(0.3, ((iv.end - iv.start) / (t1 - t0)) * 100).toFixed(2)}%`;
+/**
+ * Compact two-row window strip for the comparison table. The axis is mission
+ * time (day 0 = landing) over the longest scenario, so rows with different
+ * landing dates line up.
+ */
+export function WindowStrip({ metrics, landing, spanMs, durationMs, elapsed }: { metrics: Metrics; landing: number; spanMs: number; durationMs: number; elapsed: number }) {
+  const pc = (x: number) => `${(x * 100).toFixed(2)}%`;
+  const reach = Math.min(1, durationMs / spanMs);
+  const row = (intervals: Interval[], cls: string) => (
+    <div className="strip-row">
+      <u style={{ width: pc(reach) }} />
+      {stripLayout(intervals, landing, spanMs).map((w, i) => (
+        <i key={i} className={cls} style={{ left: pc(w.left), width: pc(Math.max(0.003, w.width)) }} />
+      ))}
+    </div>
+  );
   return (
     <div className="strip" aria-hidden="true">
-      <div className="strip-row">
-        {metrics.sunIntervals.map((iv, i) => (
-          <i key={i} className="sun" style={{ left: p(iv.start), width: w(iv) }} />
-        ))}
-      </div>
-      <div className="strip-row">
-        {metrics.earthIntervals.map((iv, i) => (
-          <i key={i} className="earth" style={{ left: p(iv.start), width: w(iv) }} />
-        ))}
-      </div>
-      <b style={{ left: p(Math.min(t1, Math.max(t0, now))) }} />
+      {row(metrics.sunIntervals, 'sun')}
+      {row(metrics.earthIntervals, 'earth')}
+      {elapsed <= durationMs && <b style={{ left: pc(elapsed / spanMs) }} />}
     </div>
   );
 }

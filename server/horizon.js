@@ -1,7 +1,7 @@
 // Terrain horizon mask: for every azimuth, the highest elevation angle at which
 // lunar terrain blocks the sky as seen from the site. No atmosphere, so no
 // refraction: the horizon is pure geometry (terrain + curvature of the sphere).
-import { MOON_RADIUS_KM as R, DEM_MIN_LAT, loadDem, heightAtXY, heightAtLatLon } from './dem.js';
+import { MOON_RADIUS_KM as R, DEM_MIN_LAT, loadDem, heightAtXY, heightAtLatLon, resolutionAt } from './dem.js';
 
 const DEG = Math.PI / 180;
 export const COVERAGE_MAX_LAT = -80; // sites poleward of this get a real-terrain horizon
@@ -11,6 +11,29 @@ const EDGE_Z = Math.sin(DEM_MIN_LAT * DEG);
 /** Dip of a smooth sphere's horizon for an eye `heightKm` above the surface (negative degrees). */
 export function sphereDipDeg(heightKm) {
   return -Math.acos(R / (R + heightKm)) / DEG;
+}
+
+// Distances sampled along a ray, with the cosine and sine of the arc each one spans.
+// They depend only on the starting step, so every azimuth of every horizon shares them.
+const stepTables = new Map();
+function raySteps(halfCell) {
+  let t = stepTables.get(halfCell);
+  if (!t) {
+    const d = [];
+    for (let x = halfCell; x < MAX_RANGE_KM; x += Math.max(halfCell, x * 0.01)) d.push(x);
+    t = { d: Float64Array.from(d), cos: Float64Array.from(d, (x) => Math.cos(x / R)), sin: Float64Array.from(d, (x) => Math.sin(x / R)) };
+    stepTables.set(halfCell, t);
+  }
+  return t;
+}
+
+/** A horizon as plain JSON: angles to a thousandth of a degree, distances to 10 m. */
+export function serializeHorizon(h) {
+  return {
+    ...h,
+    elevationDeg: Array.from(h.elevationDeg, (v) => Math.round(v * 1000) / 1000),
+    distanceKm: Array.from(h.distanceKm, (v) => Math.round(v * 100) / 100),
+  };
 }
 
 export function computeHorizon(latDeg, lonDeg, mastM = 2, nAz = 720) {
@@ -31,7 +54,13 @@ export function computeHorizon(latDeg, lonDeg, mastM = 2, nAz = 720) {
   const e = [-Math.sin(lon), Math.cos(lon), 0];
 
   const h0 = heightAtLatLon(latDeg, lonDeg);
+  // The ray starts half a cell out and advances half a cell at a time, then 1% of the distance:
+  // 10 m steps over 20 m terrain, 120 m steps over 240 m terrain.
+  const resolutionM = resolutionAt(latDeg, lonDeg);
+  const halfCell = resolutionM / 2000;
   const r0 = R + h0 + mastKm;
+  const steps = raySteps(halfCell);
+  const count = steps.d.length;
 
   for (let a = 0; a < nAz; a++) {
     const az = ((a * 360) / nAz) * DEG;
@@ -41,31 +70,28 @@ export function computeHorizon(latDeg, lonDeg, mastM = 2, nAz = 720) {
     const dy = n[1] * ca + e[1] * sa;
     const dz = n[2] * ca + e[2] * sa;
 
+    // The elevation angle grows with its tangent, so the tangent is compared
+    // and the angle is taken once, at the end.
     let best = -Infinity;
-    let bestD = 0;
-    let d = 0.12;
-    while (d < MAX_RANGE_KM) {
-      const g = d / R;
-      const cg = Math.cos(g);
-      const sg = Math.sin(g);
+    let bestI = -1;
+    for (let i = 0; i < count; i++) {
+      const cg = steps.cos[i];
+      const sg = steps.sin[i];
       const z = p0[2] * cg + dz * sg;
       if (z > EDGE_Z) break; // left the DEM
-      const x = p0[0] * cg + dx * sg;
-      const y = p0[1] * cg + dy * sg;
       const k = (2 * R) / (1 - z);
-      const h = heightAtXY(k * y, k * x);
-      if (Number.isNaN(h)) break;
+      const h = heightAtXY(k * (p0[1] * cg + dy * sg), k * (p0[0] * cg + dx * sg));
+      if (h !== h) break; // NaN: outside every grid
       const r1 = R + h;
-      const ang = Math.atan2(r1 * cg - r0, r1 * sg);
-      if (ang > best) {
-        best = ang;
-        bestD = d;
+      const tan = (r1 * cg - r0) / (r1 * sg);
+      if (tan > best) {
+        best = tan;
+        bestI = i;
       }
-      d += Math.max(0.12, d * 0.01);
     }
-    elev[a] = best === -Infinity ? sphereDipDeg(mastKm) : best / DEG;
-    dist[a] = bestD;
+    elev[a] = bestI < 0 ? sphereDipDeg(mastKm) : Math.atan(best) / DEG;
+    dist[a] = bestI < 0 ? 0 : steps.d[bestI];
   }
 
-  return { model: 'lola-240m', siteElevationM: Math.round(h0 * 1000), mastM, nAz, elevationDeg: elev, distanceKm: dist };
+  return { model: 'lola', resolutionM, siteElevationM: Math.round(h0 * 1000), mastM, nAz, elevationDeg: elev, distanceKm: dist };
 }
