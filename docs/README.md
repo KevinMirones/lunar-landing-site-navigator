@@ -35,6 +35,7 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-14 | [Specs S01 a S05 implementadas](historial/2026-11-14-08-specs-s01-a-s05.md)<br>Escenarios, enlaces compartibles, buscador de puntos y de fechas, y el servidor listo para publicarse. | hito |
 | 2026-11-14 | [Un retraso de cinco meses lleva la cresta de 100% a 28% de luz](historial/2026-11-14-07-estaciones-lunares.md)<br>El buscador de fechas muestra las estaciones lunares; el invierno austral cae a finales de abril de 2027. | hallazgo |
 | 2026-11-14 | [Redondear un punto 16 m cambiaba su enlace de 100% a 93%](historial/2026-11-14-06-dieciseis-metros.md)<br>Los puntos propios se guardaban con tres decimales; ahora se guardan con cinco. | hallazgo |
 | 2026-11-14 | [Plan de la semana convertido en 14 specs](historial/2026-11-14-05-plan-y-specs.md)<br>El trabajo pendiente queda dividido en specs con estado, y el índice se genera solo. | decisión |
