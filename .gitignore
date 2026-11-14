@@ -1,0 +1,8 @@
+node_modules
+dist
+*.log
+.env
+.env.*
+
+# LOLA elevation model (28 MB). Download it with: npm run fetch-data
+server/data/*.img
