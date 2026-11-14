@@ -6,7 +6,7 @@ import { adoptDem, heightAtLatLon, slopeDegAt } from './dem.js';
 import { computeHorizon } from './horizon.js';
 import { frameSeries, metrics, siteSeries } from '../src/lib/series.ts';
 
-adoptDem(workerData.dem); // the elevation grid is shared with the main thread, not copied
+adoptDem(workerData.dem); // the elevation grids are shared with the main thread, not copied
 
 const HOUR = 3600e3;
 const round = (x, digits) => Math.round(x * 10 ** digits) / 10 ** digits;

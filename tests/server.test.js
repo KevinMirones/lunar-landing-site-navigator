@@ -1,6 +1,8 @@
 // S03: what protects the API once it is on a public address.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app.js';
+import { demAvailable } from '../server/dem.js';
+import { keyOf, loadPrecomputed } from '../server/precomputed.js';
 import { createRateLimiter } from '../server/rateLimit.js';
 
 describe('rate limiter', () => {
@@ -104,5 +106,59 @@ describe('public API', () => {
   it('rejects a horizon request without valid coordinates', async () => {
     const res = await fetch(`${base}/api/horizon?lat=abc&lon=3`);
     expect(res.status).toBe(400);
+  });
+});
+
+// S06: a small server without the fine grids still answers catalogue sites with fine-terrain horizons.
+describe('precomputed horizons', () => {
+  let server;
+  let base;
+  const entry = (lat, lon, resolutionM) => ({
+    lat,
+    lon,
+    model: 'lola',
+    resolutionM,
+    siteElevationM: 1234,
+    mastM: 2,
+    nAz: 720,
+    elevationDeg: new Array(720).fill(7),
+    distanceKm: new Array(720).fill(1),
+  });
+
+  beforeAll(async () => {
+    // 82.5S lies outside the 20 m and 40 m grids, so no installation computes it that fine.
+    const horizons = new Map([
+      [keyOf(-82.5, 10, 2), entry(-82.5, 10, 20)],
+      [keyOf(-82.5, 20, 2), entry(-82.5, 20, 240)],
+    ]);
+    server = createApp({ horizons }).listen(0);
+    await new Promise((resolve) => server.once('listening', resolve));
+    base = `http://127.0.0.1:${server.address().port}`;
+  });
+  afterAll(() => server.close());
+
+  it('answers with the precomputed horizon when it is finer than the terrain installed', async () => {
+    const h = await (await fetch(`${base}/api/horizon?lat=-82.5&lon=10&mast=2`)).json();
+    expect(h).toMatchObject({ model: 'lola', resolutionM: 20, precomputed: true, siteElevationM: 1234 });
+    expect(h.elevationDeg[0]).toBe(7);
+  });
+
+  it('does not use it for another mast height', async () => {
+    const h = await (await fetch(`${base}/api/horizon?lat=-82.5&lon=10&mast=10`)).json();
+    expect(h.precomputed).toBeUndefined();
+  });
+
+  it.skipIf(!demAvailable())('computes from the grids when the precomputed horizon is no finer than they are', async () => {
+    const h = await (await fetch(`${base}/api/horizon?lat=-82.5&lon=20&mast=2`)).json();
+    expect(h.precomputed).toBeUndefined();
+    expect(h.siteElevationM).not.toBe(1234);
+  });
+
+  it('reads the horizons shipped with the repository', () => {
+    const shipped = loadPrecomputed();
+    const ridge = shipped.get(keyOf(-89.4398, -137.17, 2));
+    expect(ridge).toMatchObject({ model: 'lola', nAz: 720 });
+    expect(ridge.resolutionM).toBeLessThan(240);
+    expect(ridge.elevationDeg).toHaveLength(720);
   });
 });

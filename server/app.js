@@ -4,8 +4,9 @@ import express from 'express';
 import compression from 'compression';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buildHeightmap, demAvailable } from './dem.js';
-import { computeHorizon, COVERAGE_MAX_LAT } from './horizon.js';
+import { buildHeightmap, demAvailable, demResolutions, resolutionAt } from './dem.js';
+import { computeHorizon, serializeHorizon, COVERAGE_MAX_LAT } from './horizon.js';
+import { keyOf, loadPrecomputed } from './precomputed.js';
 import { createRateLimiter, rateLimit } from './rateLimit.js';
 import { SEARCH_GRIDS, runSearch } from './search.js';
 
@@ -64,10 +65,11 @@ export async function horizonsAzEl(command, lat, lon, t) {
 }
 
 /**
- * Builds the Express app. `jpl` can be replaced in tests so they need no network.
+ * Builds the Express app. `jpl` and `horizons` (the precomputed horizons) can be
+ * replaced in tests, so they need neither the network nor the files on disk.
  * Behind a reverse proxy set TRUST_PROXY=1 so the rate limit sees the real client address.
  */
-export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30 } = {}) {
+export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = loadPrecomputed() } = {}) {
   const app = express();
   app.disable('x-powered-by');
   if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
@@ -83,7 +85,7 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30 } = {}) {
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, dem: demAvailable(), coverageMaxLat: COVERAGE_MAX_LAT });
+    res.json({ ok: true, dem: demAvailable(), resolutionsM: demResolutions(), precomputed: horizons.size, coverageMaxLat: COVERAGE_MAX_LAT });
   });
 
   const horizonCache = new Map();
@@ -97,12 +99,10 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30 } = {}) {
     const key = `${lat.toFixed(4)}|${lon.toFixed(4)}|${mast}`;
     let body = horizonCache.get(key);
     if (!body) {
-      const h = computeHorizon(lat, lon, mast);
-      body = {
-        ...h,
-        elevationDeg: Array.from(h.elevationDeg, (v) => Math.round(v * 1000) / 1000),
-        distanceKm: Array.from(h.distanceKm, (v) => Math.round(v * 10) / 10),
-      };
+      // A horizon computed beforehand wins when its terrain is finer than what is installed here.
+      const pre = lat <= COVERAGE_MAX_LAT ? horizons.get(keyOf(lat, lon, mast)) : undefined;
+      const here = demAvailable() ? (resolutionAt(lat, lon) ?? Infinity) : Infinity;
+      body = pre && pre.resolutionM < here ? { ...pre, precomputed: true } : serializeHorizon(computeHorizon(lat, lon, mast));
       if (horizonCache.size > 500) horizonCache.delete(horizonCache.keys().next().value);
       horizonCache.set(key, body);
     }

@@ -2,7 +2,7 @@
 import { createSocket } from 'node:dgram';
 import { existsSync } from 'node:fs';
 import { createApp, DIST } from './app.js';
-import { loadDem } from './dem.js';
+import { demResolutions } from './dem.js';
 
 const PORT = process.env.PORT || 8787;
 
@@ -20,8 +20,8 @@ function lanAddress() {
 }
 
 createApp().listen(PORT, async () => {
-  const ok = loadDem() !== null;
-  console.log(`LUMINA API on http://localhost:${PORT}  (LOLA DEM: ${ok ? 'loaded' : 'MISSING - run npm run fetch-data'})`);
+  const grids = demResolutions();
+  console.log(`LUMINA API on http://localhost:${PORT}  (LOLA terrain: ${grids.length ? `${grids.join(', ')} m` : 'MISSING - run npm run fetch-data'})`);
   const ip = await lanAddress();
   if (ip && existsSync(DIST)) console.log(`Built app for people on your network: http://${ip}:${PORT}`);
 });

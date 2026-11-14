@@ -1,7 +1,7 @@
 // A scenario is one "what if": a site, a landing date, a mission duration and
 // a mast height. The comparison table holds several of them, so the same site
 // can be weighed against itself on another date.
-import { computeFrameSeries, frameSeries, metrics, siteSeries, type Horizon, type Interval, type Metrics, type SiteSeries, type TimeGrid } from './series';
+import { computeFrameSeries, frameSeries, metrics, siteSeries, type Horizon, type Interval, type Metrics, type SiteSeries, type TimeGrid } from './series.ts';
 
 export interface Scenario {
   id: string;

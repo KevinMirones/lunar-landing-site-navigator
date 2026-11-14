@@ -23,7 +23,11 @@ export interface FrameSeries extends TimeGrid {
 }
 
 export interface Horizon {
-  model: 'lola-240m' | 'sphere';
+  model: 'lola' | 'sphere';
+  /** Cell size in metres of the terrain under the site (real terrain only). */
+  resolutionM?: number;
+  /** True when the server answered with a horizon computed beforehand on finer terrain than it holds. */
+  precomputed?: boolean;
   siteElevationM: number;
   mastM: number;
   nAz: number;

@@ -152,12 +152,20 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
         <h2>{site.name}</h2>
         <p className="num">
           {fmtLatLon(site.lat, site.lon)}
-          {horizon.model === 'lola-240m' && `   ${horizon.siteElevationM >= 0 ? '+' : '−'}${Math.abs(horizon.siteElevationM)} m`}
+          {horizon.model === 'lola' && `   ${horizon.siteElevationM >= 0 ? '+' : '−'}${Math.abs(horizon.siteElevationM)} m`}
         </p>
         <p className="status-note">{site.note[lang]}</p>
+        {site.precision !== 'custom' && (
+          <p className="status-source">
+            <b>{site.precision === 'published' ? tr('Coordenadas publicadas.', 'Published coordinates.') : tr('Punto representativo.', 'Representative point.')}</b> {site.source[lang]}
+          </p>
+        )}
         <p className={`model ${horizon.model}`}>
-          {horizon.model === 'lola-240m'
-            ? tr('Horizonte calculado con topografía real LOLA (240 m).', 'Horizon computed from real LOLA topography (240 m).')
+          {horizon.model === 'lola'
+            ? tr(
+                `Horizonte calculado con topografía LOLA de ${horizon.resolutionM ?? 240} m${horizon.precomputed ? ' (precalculado)' : ''}.`,
+                `Horizon computed from ${horizon.resolutionM ?? 240} m LOLA topography${horizon.precomputed ? ' (precomputed)' : ''}.`,
+              )
             : horizon.offline
               ? tr('Sin conexión con el servidor de terreno: se usa una Luna lisa.', 'Terrain server unreachable: using a smooth Moon.')
               : tr('Fuera de la cobertura de terreno (80°S a 90°S): se usa una Luna lisa.', 'Outside terrain coverage (80°S to 90°S): using a smooth Moon.')}
@@ -273,15 +281,20 @@ function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; me
     items.push(tr('La Tierra permanece a la vista toda la misión: enlace directo continuo.', 'Earth stays in view all mission: continuous direct link.'));
   }
 
-  if (horizon.model === 'lola-240m') {
+  if (horizon.model === 'lola') {
     let best = 0;
     for (let i = 1; i < horizon.nAz; i++) if (horizon.elevationDeg[i] > horizon.elevationDeg[best]) best = i;
     const az = (best * 360) / horizon.nAz;
     items.push(
-      tr(
-        `El mayor obstáculo está al ${compass(az, lang)}, a ${km(horizon.distanceKm[best])}: levanta el horizonte ${deg(horizon.elevationDeg[best])}.`,
-        `The biggest obstacle lies to the ${compass(az, lang)}, ${km(horizon.distanceKm[best])} away: it raises the horizon by ${deg(horizon.elevationDeg[best])}.`,
-      ),
+      horizon.elevationDeg[best] > 0
+        ? tr(
+            `El mayor obstáculo está al ${compass(az, lang)}, a ${km(horizon.distanceKm[best])}: levanta el horizonte ${deg(horizon.elevationDeg[best])}.`,
+            `The biggest obstacle lies to the ${compass(az, lang)}, ${km(horizon.distanceKm[best])} away: it raises the horizon by ${deg(horizon.elevationDeg[best])}.`,
+          )
+        : tr(
+            `Ningún relieve supera la horizontal: el horizonte queda por debajo en todas las direcciones (como mucho a ${deg(horizon.elevationDeg[best])}).`,
+            `No terrain rises above the horizontal: the horizon lies below it in every direction (${deg(horizon.elevationDeg[best])} at most).`,
+          ),
     );
   }
 

@@ -9,7 +9,7 @@ const YEAR = { t0: T0, stepMs: 2 * HOUR, n: (366 + 90) * 12 + 1 }; // the grid t
 
 /** A polar-style horizon with relief, so sunlight and Earth come and go several times a month. */
 const jagged: Horizon = {
-  model: 'lola-240m',
+  model: 'lola',
   siteElevationM: 1500,
   mastM: 2,
   nAz: 360,

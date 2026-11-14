@@ -35,7 +35,9 @@ export function gridCells(lat, lon, radiusKm, n) {
 let pool = null;
 function getPool() {
   if (!pool) {
-    const size = Number(process.env.SEARCH_WORKERS) || Math.max(1, Math.min(4, os.availableParallelism() - 1));
+    // The grids are shared memory, so a worker costs little. Eight of them bring the fine grid
+    // over 20 m terrain from 8.8 s (four workers) to 5.2 s on a 12-thread laptop.
+    const size = Number(process.env.SEARCH_WORKERS) || Math.max(1, Math.min(8, os.availableParallelism() - 2));
     pool = createPool(new URL('./searchWorker.js', import.meta.url), size, { dem: sharedDem() });
   }
   return pool;
