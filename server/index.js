@@ -2,6 +2,7 @@
 // Also serves the built frontend (dist/) in production.
 import express from 'express';
 import compression from 'compression';
+import { createSocket } from 'node:dgram';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { buildHeightmap, demAvailable, loadDem } from './dem.js';
@@ -111,7 +112,22 @@ if (existsSync(dist)) {
   app.get(/^(?!\/api).*/, (_req, res) => res.sendFile('index.html', { root: dist }));
 }
 
-app.listen(PORT, () => {
+/** Address of the interface that carries the default route (no packet is sent). */
+function lanAddress() {
+  return new Promise((resolve) => {
+    const socket = createSocket('udp4');
+    const done = (ip) => {
+      socket.close();
+      resolve(ip);
+    };
+    socket.once('error', () => done(null));
+    socket.connect(53, '192.0.2.1', () => done(socket.address().address));
+  });
+}
+
+app.listen(PORT, async () => {
   const ok = loadDem() !== null;
   console.log(`LUMINA API on http://localhost:${PORT}  (LOLA DEM: ${ok ? 'loaded' : 'MISSING - run npm run fetch-data'})`);
+  const ip = await lanAddress();
+  if (ip && existsSync(dist)) console.log(`Built app for people on your network: http://${ip}:${PORT}`);
 });
