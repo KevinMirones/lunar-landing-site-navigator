@@ -213,12 +213,13 @@ export function normLon(lon: number): number {
   return ((((lon + 180) % 360) + 360) % 360) - 180;
 }
 
-export function customSite(lat: number, lon: number, n: number): Site {
+export function customSite(lat: number, lon: number, n: number, name = `Custom ${n}`): Site {
   return {
     id: `custom-${n}`,
-    name: `Custom ${n}`,
-    lat: Math.round(lat * 1000) / 1000,
-    lon: Math.round(normLon(lon) * 1000) / 1000,
+    name,
+    // Five decimals (0.3 m). Near a ridge crest a 16 m shift can change the Earth link by several points.
+    lat: Math.round(lat * 1e5) / 1e5,
+    lon: Math.round(normLon(lon) * 1e5) / 1e5,
     group: 'custom',
     tag: { es: 'Personalizado', en: 'Custom' },
     note: { es: 'Coordenadas definidas por el usuario.', en: 'User-defined coordinates.' },

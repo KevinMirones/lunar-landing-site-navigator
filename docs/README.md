@@ -10,14 +10,14 @@
 
 ## Specs
 
-14 specs: 11 pendientes, 1 en curso, 2 hechas, 0 recortadas.
+14 specs: 10 pendientes, 1 en curso, 3 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
 | S01 | [Escenarios comparables](specs/S01-escenarios.md)<br>Comparar lado a lado el mismo sitio en fechas, duraciones o mástiles distintos. | 1 | imprescindible | hecha | — |
 | S02 | [Enlaces compartibles](specs/S02-enlaces-compartibles.md)<br>Copiar un enlace que abre exactamente la misma comparación en otro navegador. | 1 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S03 | [Integración continua y despliegue público](specs/S03-ci-y-despliegue.md)<br>Cada cambio se prueba solo y hay una dirección pública que el jurado puede abrir. | 1 | imprescindible | en curso | — |
-| S04 | [Buscador de puntos cercanos](specs/S04-buscador-de-puntos.md)<br>Mapa de calor alrededor de un punto y los cinco mejores lugares para aterrizar cerca. | 2 | imprescindible | pendiente | [S01](specs/S01-escenarios.md) |
+| S04 | [Buscador de puntos cercanos](specs/S04-buscador-de-puntos.md)<br>Mapa de calor alrededor de un punto y los cinco mejores lugares para aterrizar cerca. | 2 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S05 | [Buscador de mejores fechas](specs/S05-mejores-fechas.md)<br>Las cinco mejores fechas de alunizaje del año para un sitio y una duración dados. | 2 | imprescindible | pendiente | [S01](specs/S01-escenarios.md) |
 | S06 | [Terreno multirresolución](specs/S06-terreno-multirresolucion.md)<br>Horizonte calculado con celdas de 20 a 80 m cerca del sitio, en lugar de 240 m. | 3 | imprescindible | pendiente | — |
 | S07 | [Validación científica y coordenadas oficiales](specs/S07-validacion-y-coordenadas.md)<br>Tabla que compara nuestros resultados con los publicados, y cada sitio con su fuente. | 3 | imprescindible | pendiente | [S06](specs/S06-terreno-multirresolucion.md) |
@@ -35,6 +35,7 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-14 | [Redondear un punto 16 m cambiaba su enlace de 100% a 93%](historial/2026-11-14-06-dieciseis-metros.md)<br>Los puntos propios se guardaban con tres decimales; ahora se guardan con cinco. | hallazgo |
 | 2026-11-14 | [Plan de la semana convertido en 14 specs](historial/2026-11-14-05-plan-y-specs.md)<br>El trabajo pendiente queda dividido en specs con estado, y el índice se genera solo. | decisión |
 | 2026-11-14 | [Publicación en GitHub y descarga de datos reanudable](historial/2026-11-14-04-publicacion-y-descarga.md)<br>Al probar un clon limpio apareció un fallo en la descarga del DEM; se corrigió antes de publicar. | incidencia |
 | 2026-11-14 | [En Malapert, 1.2 km separan 0% y 100% de enlace](historial/2026-11-14-03-hallazgo-malapert.md)<br>El punto del catálogo quedaba tapado por su propia ladera; movido 1.2 km tiene enlace continuo. | hallazgo |

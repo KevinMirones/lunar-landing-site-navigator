@@ -14,6 +14,7 @@ import {
   type Scenario,
   type ScenarioAnalysis,
 } from './lib/scenario';
+import { fetchSearch, rankCells, type Criterion, type SearchCell, type SearchResult } from './lib/search';
 import { dailyShares, frameSeries, siteSeries, skyAt, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
 import { decode, encode, fromShared, toShared } from './lib/urlState';
@@ -22,6 +23,7 @@ import { Globe } from './components/Globe';
 import { Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
 import { PolarMap } from './components/PolarMap';
+import { SearchControls, SearchResults, whereFrom, type SearchStatus } from './components/Search';
 import { Timeline } from './components/Timeline';
 
 const HOUR = 3600e3;
@@ -319,6 +321,58 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [copyState]);
 
+  // ---- search around the active point (S04)
+  const [search, setSearch] = useState<{ open: boolean; radius: number; criterion: Criterion }>({ open: false, radius: 5, criterion: 'score' });
+  const [found, setFound] = useState<{ key: string; result: SearchResult; refined: boolean } | null>(null);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [searchTry, setSearchTry] = useState(0);
+  const searchable = site.lat <= -80;
+  const searchKey = `${site.lat}|${site.lon}|${mast}|${landing}|${durationDays}|${search.radius}`;
+  useEffect(() => {
+    if (!search.open || !searchable) return;
+    const ctl = new AbortController();
+    setSearchFailed(false);
+    const q = { lat: site.lat, lon: site.lon, radius: search.radius, mast, t0: landing, days: durationDays };
+    // A coarse grid answers in under a second; the fine one replaces it a few seconds later.
+    const timer = window.setTimeout(async () => {
+      try {
+        setFound({ key: searchKey, result: await fetchSearch({ ...q, grid: 11 }, ctl.signal), refined: false });
+        setFound({ key: searchKey, result: await fetchSearch({ ...q, grid: 41 }, ctl.signal), refined: true });
+      } catch {
+        if (!ctl.signal.aborted) setSearchFailed(true);
+      }
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+      ctl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.open, searchable, searchKey, searchTry]);
+  const searchResult = search.open && searchable && found?.key === searchKey ? found.result : null;
+  const searchStatus: SearchStatus = searchFailed ? 'error' : !searchResult ? 'coarse' : found?.refined ? 'done' : 'refining';
+  const picks = useMemo(() => (searchResult ? rankCells(searchResult.cells, search.criterion, searchResult.grid) : []), [searchResult, search.criterion]);
+  const heat = useMemo(() => (searchResult ? { result: searchResult, criterion: search.criterion, picks } : null), [searchResult, search.criterion, picks]);
+  /** A custom point at a searched cell, named after the point the search started from. */
+  const siteAtCell = useCallback(
+    (cell: SearchCell) => {
+      const base = site.name.replace(/ \+[\d.]+ k?m .*$/, '');
+      const s = customSite(cell.lat, cell.lon, ++customCount.current, `${base} +${whereFrom(site, cell, 'en')}`);
+      setCustom((c) => [...c, s]);
+      return s;
+    },
+    [site],
+  );
+  const useCell = useCallback((cell: SearchCell) => editActive({ siteId: siteAtCell(cell).id }), [editActive, siteAtCell]);
+  const addCell = useCallback(
+    (cell: SearchCell) => {
+      const { list, added } = addScenario(scenarios, { siteId: siteAtCell(cell).id, landing, durationDays, mast });
+      if (!added) return;
+      setScenarios(list);
+      setActiveId(added.id);
+    },
+    [scenarios, siteAtCell, landing, durationDays, mast],
+  );
+
   const rows: ScenarioRow[] = useMemo(
     () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null })),
     [scenarios, siteOf, analyses],
@@ -429,6 +483,18 @@ export default function App() {
                 </button>
               </div>
               {mapView === 'polar' && (
+                <button
+                  type="button"
+                  className="search-toggle"
+                  aria-pressed={search.open}
+                  disabled={!searchable}
+                  title={searchable ? undefined : tr('El buscador necesita terreno real: solo funciona entre 80°S y 90°S.', 'The search needs real terrain: it only works between 80°S and 90°S.')}
+                  onClick={() => setSearch((s) => ({ ...s, open: !s.open }))}
+                >
+                  {tr('Buscar el mejor punto cerca', 'Find the best point nearby')}
+                </button>
+              )}
+              {mapView === 'polar' && (
                 <div className="segmented" role="group" aria-label={tr('Capa', 'Layer')}>
                   <button type="button" className="sun" aria-pressed={mapMode === 'sun'} onClick={() => setMapMode('sun')}>
                     {tr('Dónde da el Sol', 'Where the Sun reaches')}
@@ -439,11 +505,22 @@ export default function App() {
                 </div>
               )}
             </div>
+            {mapView === 'polar' && search.open && searchable && (
+              <SearchControls
+                radius={search.radius}
+                criterion={search.criterion}
+                status={searchStatus}
+                result={searchResult}
+                onRadius={(radius) => setSearch((s) => ({ ...s, radius }))}
+                onCriterion={(criterion) => setSearch((s) => ({ ...s, criterion }))}
+                onRetry={() => setSearchTry((n) => n + 1)}
+              />
+            )}
             <div className="map-body">
               {mapView === 'globe' ? (
                 <Globe sunDir={vectors.sun} earthDir={vectors.earth} sites={sites} selectedId={site.id} pinned={inUse} onSelect={selectSite} onPick={pick} />
               ) : polarAvailable ? (
-                <PolarMap hm={heightmap} sunDir={vectors.sun} earthDir={vectors.earth} mode={mapMode} sites={sites} selectedId={site.id} pinned={inUse} onSelect={selectSite} onPick={pick} />
+                <PolarMap hm={heightmap} sunDir={vectors.sun} earthDir={vectors.earth} mode={mapMode} sites={sites} selectedId={site.id} pinned={inUse} onSelect={selectSite} onPick={pick} heat={heat} />
               ) : (
                 <div className="map-empty">
                   {heightmap === 'loading'
@@ -452,6 +529,7 @@ export default function App() {
                 </div>
               )}
             </div>
+            {mapView === 'polar' && search.open && searchable && <SearchResults result={searchResult} picks={picks} canAdd={canAdd} onUse={useCell} onAdd={addCell} />}
           </section>
 
           <aside className="col-status">

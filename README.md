@@ -40,7 +40,7 @@ Proyecto para el reto de NASA Space Apps sobre planificación de misiones al pol
 
 ## Puesta en marcha
 
-Requiere Node 20 o superior.
+Requiere Node 22.18 o superior: el servidor carga directamente los módulos TypeScript de análisis.
 
 ```bash
 npm install
@@ -69,6 +69,7 @@ Un único servicio Node sirve la API y la web. Vale cualquier alojamiento que ej
 | Comprobación de salud | `/api/health` debe responder `"dem": true` |
 | Memoria | 256 MB bastan |
 | Detrás de un proxy | `TRUST_PROXY=1`, para que el límite de peticiones vea la dirección real del cliente |
+| Servidor pequeño | `SEARCH_WORKERS=1` y `SEARCH_MAX_GRID=21` reducen el coste del buscador de puntos |
 
 En público, `/api/jpl` admite 30 consultas por minuto y por dirección, y guarda las respuestas en caché. El servidor envía cabeceras de seguridad, incluida una política de contenido que solo permite recursos propios.
 
@@ -95,11 +96,16 @@ El [índice de documentación](docs/README.md) reúne el plan de la semana, las 
 server/          API Express
   dem.js         lectura del DEM LOLA y proyección estereográfica polar
   horizon.js     horizonte del terreno por trazado de rayos
-  index.js       /api/horizon, /api/heightmap, /api/jpl
+  app.js         /api/horizon, /api/heightmap, /api/jpl, /api/search
+  search.js      búsqueda en una malla alrededor de un punto, en hilos de trabajo
+  index.js       arranque
 src/lib/
   ephemeris.ts   Sol y Tierra en el sistema fijo a la Luna
   series.ts      series temporales, ventanas, métricas
   sites.ts       catálogo de sitios
+  scenario.ts    escenarios comparables
+  urlState.ts    estado en la dirección (enlaces compartibles)
+  search.ts      elección de los mejores puntos cercanos
 src/components/  Panorama, PolarMap (WebGL2), Globe (three.js), Timeline, Panels
 tests/           validación contra JPL Horizons y pruebas del terreno
 docs/            índice, plan, specs, historial y guion para el jurado

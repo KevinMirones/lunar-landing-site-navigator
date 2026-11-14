@@ -4,7 +4,7 @@
 //   ?s=ridge@2026-11-14T00:00~30~2;-85.95,-2.93@2026-12-05T00:00~30~10&a=0&t=36&l=es&v=polar&m=sun
 //
 //   s  scenarios separated by ";", each "site@landing~days~mast". A catalogue
-//      site goes by id, a custom point as "lat,lon".
+//      site goes by id, a custom point as "lat,lon" with up to five decimals.
 //   a  index of the active scenario      t  hours since its landing
 //   l  language    v  map view    m  map layer
 //
@@ -29,7 +29,7 @@ export interface SharedState {
 }
 
 const stamp = (ms: number) => new Date(ms).toISOString().slice(0, 16);
-const coord = (x: number) => String(Number(x.toFixed(3)));
+const coord = (x: number) => String(Number(x.toFixed(5))); // 0.3 m: see customSite
 
 export function encode(state: SharedState): string {
   const scenarios = state.scenarios

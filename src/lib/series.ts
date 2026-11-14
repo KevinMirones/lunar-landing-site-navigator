@@ -9,7 +9,7 @@ import {
   siteFrame,
   topocentric,
   type Vec3,
-} from './ephemeris';
+} from './ephemeris.ts';
 
 export interface TimeGrid {
   t0: number;

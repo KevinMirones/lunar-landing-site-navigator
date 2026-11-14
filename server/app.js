@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { buildHeightmap, demAvailable } from './dem.js';
 import { computeHorizon, COVERAGE_MAX_LAT } from './horizon.js';
 import { createRateLimiter, rateLimit } from './rateLimit.js';
+import { SEARCH_GRIDS, runSearch } from './search.js';
 
 const HEIGHTMAP_SIZE = 1280;
 const HEIGHTMAP_HALF_EXTENT_KM = 307.2; // reaches ~80S; 0.48 km per pixel
@@ -144,6 +145,35 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30 } = {}) {
       res.json(body);
     } catch (err) {
       res.status(502).json({ error: String(err.message || err) });
+    }
+  });
+
+  // Search around a point: light and Earth link on a grid of nearby cells.
+  app.get('/api/search', async (req, res) => {
+    const lat = num(req.query.lat, -90, 90);
+    const lon = num(req.query.lon, -360, 360);
+    const radius = num(req.query.radius, 1, 20);
+    const mast = num(req.query.mast ?? 2, 0, 500);
+    const t0 = num(req.query.t0, -3e13, 3e13);
+    const days = num(req.query.days, 1, 90);
+    const grid = Number(req.query.grid);
+    if ([lat, lon, radius, mast, t0, days].includes(null)) {
+      return res.status(400).json({ error: 'lat, lon, radius (1..20 km), mast, t0 (ms UTC) and days (1..90) are required' });
+    }
+    if (!SEARCH_GRIDS.includes(grid)) return res.status(400).json({ error: `grid must be one of ${SEARCH_GRIDS.join(', ')}` });
+    if (lat > COVERAGE_MAX_LAT) return res.status(400).json({ error: 'The search needs real terrain: the point must lie between 80°S and 90°S.' });
+    if (!demAvailable()) return res.status(503).json({ error: 'DEM not installed. Run: npm run fetch-data' });
+
+    // A small public server can cap the grid (SEARCH_MAX_GRID=21); the answer says which grid was used.
+    const cap = Number(process.env.SEARCH_MAX_GRID) || SEARCH_GRIDS.at(-1);
+    const used = Math.max(...SEARCH_GRIDS.filter((g) => g <= Math.min(grid, cap)), SEARCH_GRIDS[0]);
+    let gone = false;
+    res.on('close', () => (gone = !res.writableEnded));
+    try {
+      const result = await runSearch({ lat, lon, radius, mast, t0, days: Math.round(days), grid: used }, () => gone);
+      if (result) res.set('Cache-Control', 'public, max-age=3600').json(result);
+    } catch (err) {
+      res.status(500).json({ error: String(err.message || err) });
     }
   });
 

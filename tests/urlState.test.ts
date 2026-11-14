@@ -29,8 +29,14 @@ describe('encoding the state into a link', () => {
     expect(encode(full)).toBe('s=ridge@2026-11-14T00:00~30~2;-85.95,-2.93@2026-12-05T06:30~60~10&a=1&t=36.5&l=en&v=globe&m=earth');
   });
 
+  it('keeps a custom point to five decimals (0.3 m): moving it 16 m can change its Earth link by 7 points', () => {
+    const point = { lat: -85.96754, lon: -2.21038 };
+    const { state } = decode(encode({ ...full, scenarios: [{ site: point, landing: at('2026-11-14T00:00'), durationDays: 30, mast: 2 }], active: 0 }), known);
+    expect(state.scenarios![0].site).toEqual(point);
+  });
+
   it('stays under 2000 characters with six scenarios on custom points', () => {
-    const six = Array.from({ length: 6 }, (_, i) => ({ site: { lat: -89.123 - i / 1000, lon: -137.456 + i }, landing: at('2027-03-21T18:45'), durationDays: 90, mast: 50 }));
+    const six = Array.from({ length: 6 }, (_, i) => ({ site: { lat: -89.12345 - i / 1000, lon: -137.45678 + i }, landing: at('2027-03-21T18:45'), durationDays: 90, mast: 50 }));
     expect(encode({ ...full, scenarios: six, active: 5 }).length).toBeLessThan(2000);
   });
 });
@@ -104,6 +110,11 @@ describe('reading a damaged link', () => {
 });
 
 describe('turning a link into app state', () => {
+  it('does not move a custom point when creating it from link coordinates', () => {
+    const { custom } = fromShared([{ site: { lat: -85.96754, lon: -2.21038 }, landing: 1, durationDays: 30, mast: 2 }]);
+    expect(custom[0]).toMatchObject({ lat: -85.96754, lon: -2.21038 });
+  });
+
   it('creates one custom point per distinct coordinate and points scenarios at it', () => {
     const { scenarios, custom } = fromShared([
       { site: 'ridge', landing: 1, durationDays: 30, mast: 2 },

@@ -14,6 +14,7 @@ const DN_TO_KM = 0.5 / 1000;
 const DEM_PATH = fileURLToPath(new URL('./data/ldem_75s_240m.img', import.meta.url));
 
 let grid = null;
+let shared = null;
 
 export function loadDem() {
   if (grid) return grid;
@@ -22,9 +23,24 @@ export function loadDem() {
   if (buf.length !== DEM_SIZE * DEM_SIZE * 2) {
     throw new Error(`Unexpected DEM size: ${buf.length} bytes`);
   }
+  // Kept in shared memory so the search worker threads read the same 28 MB instead of each loading a copy.
   // The file is little-endian int16, which matches every platform Node runs on.
-  grid = new Int16Array(buf.buffer, buf.byteOffset, DEM_SIZE * DEM_SIZE);
+  shared = new SharedArrayBuffer(buf.length);
+  new Uint8Array(shared).set(buf);
+  grid = new Int16Array(shared);
   return grid;
+}
+
+/** The elevation grid as shared memory, to hand to worker threads. */
+export function sharedDem() {
+  loadDem();
+  return shared;
+}
+
+/** Worker threads call this with the buffer from `sharedDem()` instead of loading the file. */
+export function adoptDem(buffer) {
+  shared = buffer;
+  grid = new Int16Array(buffer);
 }
 
 export function demAvailable() {
@@ -53,9 +69,24 @@ export function latLonToXY(latDeg, lonDeg) {
   return [rho * Math.sin(lon), rho * Math.cos(lon)];
 }
 
+/** South polar stereographic inverse projection: map km -> [latitude, longitude] in degrees. */
+export function xyToLatLon(xKm, yKm) {
+  const lat = -90 + (2 * Math.atan(Math.hypot(xKm, yKm) / (2 * MOON_RADIUS_KM)) * 180) / Math.PI;
+  return [lat, (Math.atan2(xKm, yKm) * 180) / Math.PI];
+}
+
 export function heightAtLatLon(latDeg, lonDeg) {
   const [x, y] = latLonToXY(latDeg, lonDeg);
   return heightAtXY(x, y);
+}
+
+/** Terrain slope in degrees, from the height difference one grid cell either side of the point. */
+export function slopeDegAt(latDeg, lonDeg) {
+  const [x, y] = latLonToXY(latDeg, lonDeg);
+  const d = DEM_SCALE_KM;
+  const gx = (heightAtXY(x + d, y) - heightAtXY(x - d, y)) / (2 * d);
+  const gy = (heightAtXY(x, y + d) - heightAtXY(x, y - d)) / (2 * d);
+  return (Math.atan(Math.hypot(gx, gy)) * 180) / Math.PI;
 }
 
 /**

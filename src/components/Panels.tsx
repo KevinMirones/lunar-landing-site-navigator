@@ -364,7 +364,7 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
 
   return (
     <div className="compare-scroll">
-      <table className="compare">
+      <table className="compare scenarios">
         <thead>
           <tr>
             <th>{tr('Sitio', 'Site')}</th>
