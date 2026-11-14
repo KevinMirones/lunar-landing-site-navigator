@@ -15,12 +15,12 @@ import {
   type ScenarioAnalysis,
 } from './lib/scenario';
 import { fetchSearch, rankCells, type Criterion, type SearchCell, type SearchResult } from './lib/search';
-import { dailyShares, frameSeries, siteSeries, skyAt, type Horizon, type TimeGrid } from './lib/series';
+import { bestDates, dailyShares, frameSeries, siteSeries, skyAt, windowScores, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
 import { decode, encode, fromShared, toShared } from './lib/urlState';
 import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, type Heightmap } from './lib/util';
 import { Globe } from './components/Globe';
-import { Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
+import { BestDates, Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
 import { PolarMap } from './components/PolarMap';
 import { SearchControls, SearchResults, whereFrom, type SearchStatus } from './components/Search';
@@ -30,6 +30,7 @@ const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 const SPEEDS = [0.5, 2, 6]; // mission days per second
 const FALLBACK_SITE = CATALOG[0];
+const CALENDAR_DAYS = 366;
 
 type LoadedHorizon = Horizon & { offline?: boolean };
 
@@ -165,11 +166,17 @@ export default function App() {
   useEffect(() => {
     if (landing < yearStart || landing > yearStart + 330 * DAY) setYearStart(monthStart(landing));
   }, [landing, yearStart]);
-  const daily = useMemo(() => {
+  // The series runs 90 days past the calendar so a mission landing on its last day still has data.
+  const yearSeries = useMemo(() => {
     if (!horizon) return null;
-    const yearGrid: TimeGrid = { t0: yearStart, stepMs: 2 * HOUR, n: 366 * 12 };
-    return dailyShares(siteSeries(site.lat, site.lon, horizon, frameSeries(yearGrid)));
+    const yearGrid: TimeGrid = { t0: yearStart, stepMs: 2 * HOUR, n: (CALENDAR_DAYS + 90) * 12 + 1 };
+    return siteSeries(site.lat, site.lon, horizon, frameSeries(yearGrid));
   }, [site, horizon, yearStart]);
+  const daily = useMemo(() => (yearSeries ? dailyShares(yearSeries, CALENDAR_DAYS) : null), [yearSeries]);
+  // Best landing dates (S05): what a mission of this duration would get on each day of the calendar.
+  const [requireSun, setRequireSun] = useState(true);
+  const scores = useMemo(() => (yearSeries ? windowScores(yearSeries, durationDays, CALENDAR_DAYS) : null), [yearSeries, durationDays]);
+  const best = useMemo(() => (scores ? bestDates(scores, { requireSun }) : []), [scores, requireSun]);
 
   // The sky right now.
   const vectors = useMemo(() => moonFixedVectors(new Date(now)), [now]);
@@ -253,6 +260,7 @@ export default function App() {
     },
     [scenarios, showOnMap, siteOf],
   );
+  const addOnDate = useCallback((t: number) => append({ siteId: active.siteId, landing: t, durationDays, mast }), [append, active.siteId, durationDays, mast]);
   const pickDay = useCallback(
     (t: number, asNew: boolean) => (asNew ? append({ siteId: active.siteId, landing: t, durationDays, mast }) : changeLanding(t)),
     [append, changeLanding, active.siteId, durationDays, mast],
@@ -584,11 +592,18 @@ export default function App() {
             </h2>
             <p className="lede">
               {tr(
-                'Doce meses, día a día. Cuanto más intenso el color, más horas de luz o de enlace. Útil cuando un retraso obliga a replanificar.',
-                'Twelve months, day by day. The stronger the colour, the more hours of light or link. Useful when a delay forces a replan.',
+                `Doce meses, día a día. Cuanto más intenso el color, más horas de luz o de enlace. La tercera fila es el índice que tendría una misión de ${durationDays} días si aterrizara ese día; los triángulos marcan las mejores fechas.`,
+                `Twelve months, day by day. The stronger the colour, the more hours of light or link. The third row is the index a ${durationDays}-day mission would get if it landed that day; triangles mark the best dates.`,
               )}
             </p>
-            {daily ? <YearCalendar daily={daily} landing={landing} durationDays={durationDays} onPickDay={pickDay} /> : <p className="empty">{tr('Calculando…', 'Computing…')}</p>}
+            {daily && scores ? (
+              <>
+                <YearCalendar daily={daily} scores={scores} best={best} landing={landing} durationDays={durationDays} onPickDay={pickDay} />
+                <BestDates scores={scores} best={best} requireSun={requireSun} canAdd={canAdd} onRequireSun={setRequireSun} onApply={changeLanding} onAdd={addOnDate} />
+              </>
+            ) : (
+              <p className="empty">{tr('Calculando…', 'Computing…')}</p>
+            )}
           </div>
         </section>
 

@@ -2,7 +2,7 @@
 import { memo, useMemo, useState } from 'react';
 import { SUN_RADIUS_KM, moonFixedVectors, siteFrame, topocentric } from '../lib/ephemeris';
 import type { Scenario } from '../lib/scenario';
-import { nextEvent, type Horizon, type Metrics, type Sky } from '../lib/series';
+import { nextEvent, type Horizon, type Metrics, type Sky, type WindowScores } from '../lib/series';
 import { normLon, type Site } from '../lib/sites';
 import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
 import { Closeup } from './Panorama';
@@ -446,6 +446,10 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
 
 interface CalendarProps {
   daily: { sun: Float32Array; earth: Float32Array; t0: number; days: number };
+  /** What a mission would score if it landed on each day of the calendar. */
+  scores: WindowScores;
+  /** Day indices of the best landing dates, best first. */
+  best: number[];
   landing: number;
   durationDays: number;
   /** `asNew` is true for a shift-click: add a scenario on that day instead of moving the active one. */
@@ -454,7 +458,7 @@ interface CalendarProps {
 
 const DAY = 86400e3;
 
-export const YearCalendar = memo(function YearCalendar({ daily, landing, durationDays, onPickDay }: CalendarProps) {
+export const YearCalendar = memo(function YearCalendar({ daily, scores, best, landing, durationDays, onPickDay }: CalendarProps) {
   const tr = useTr();
   const lang = useLang();
   const [ref, size] = useSize<HTMLDivElement>();
@@ -463,7 +467,9 @@ export const YearCalendar = memo(function YearCalendar({ daily, landing, duratio
   const iw = Math.max(10, size.w - PADL - 14);
   const cw = iw / daily.days;
   const ROW = 26;
+  const ROWS = 3;
   const top = 22;
+  const bottom = top + ROWS * ROW;
 
   const monthEvery = cw * 30 >= 36 ? 1 : cw * 30 >= 18 ? 2 : 3;
   const months = useMemo(() => {
@@ -496,10 +502,10 @@ export const YearCalendar = memo(function YearCalendar({ daily, landing, duratio
       }}
     >
       {size.w > 0 && (
-        <svg width={size.w} height={top + 2 * ROW + 6}>
+        <svg width={size.w} height={bottom + 22}>
           {months.map((m) => (
             <g key={m.day}>
-              <line className="tl-grid" x1={PADL + m.day * cw} x2={PADL + m.day * cw} y1={top - 6} y2={top + 2 * ROW + 4} />
+              <line className="tl-grid" x1={PADL + m.day * cw} x2={PADL + m.day * cw} y1={top - 6} y2={bottom + 1} />
               {daily.days - m.day > 12 && months.indexOf(m) % monthEvery === 0 && (
                 <text className="tl-tick" x={PADL + m.day * cw + 4} y={12}>
                   {m.label}
@@ -511,6 +517,7 @@ export const YearCalendar = memo(function YearCalendar({ daily, landing, duratio
             <g key={d}>
               <rect x={PADL + d * cw} y={top} width={cw + 0.4} height={ROW - 3} className="cal-sun" fillOpacity={Math.min(1, daily.sun[d])} />
               <rect x={PADL + d * cw} y={top + ROW} width={cw + 0.4} height={ROW - 3} className="cal-earth" fillOpacity={Math.min(1, daily.earth[d])} />
+              {d < scores.days && <rect x={PADL + d * cw} y={top + 2 * ROW} width={cw + 0.4} height={ROW - 3} className="cal-score" fillOpacity={(scores.score[d] / 100) ** 1.6} />}
             </g>
           ))}
           <text className="tl-axis" x={PADL - 8} y={top + 15} textAnchor="end">
@@ -519,17 +526,102 @@ export const YearCalendar = memo(function YearCalendar({ daily, landing, duratio
           <text className="tl-axis" x={PADL - 8} y={top + ROW + 15} textAnchor="end">
             {tr('Enlace', 'Link')}
           </text>
+          <text className="tl-axis" x={PADL - 8} y={top + 2 * ROW + 15} textAnchor="end">
+            {tr('Índice', 'Index')}
+          </text>
+          {best.map((d, k) => (
+            <g key={d} className="cal-best" transform={`translate(${PADL + (d + 0.5) * cw},${bottom})`}>
+              <path d="M0,0l-4,6h8z" />
+              <text y="18" textAnchor="middle">
+                {k + 1}
+              </text>
+            </g>
+          ))}
           {m0 > -durationDays && m0 < daily.days && (
-            <rect className="cal-window" x={PADL + Math.max(0, m0) * cw} y={top - 4} width={Math.max(2, (Math.min(daily.days, m0 + durationDays) - Math.max(0, m0)) * cw)} height={2 * ROW + 5} rx="2" />
+            <rect className="cal-window" x={PADL + Math.max(0, m0) * cw} y={top - 4} width={Math.max(2, (Math.min(daily.days, m0 + durationDays) - Math.max(0, m0)) * cw)} height={ROWS * ROW + 5} rx="2" />
           )}
-          {hover !== null && <rect className="cal-hover" x={PADL + hover * cw} y={top - 4} width={Math.max(1.5, cw)} height={2 * ROW + 5} />}
+          {hover !== null && <rect className="cal-hover" x={PADL + hover * cw} y={top - 4} width={Math.max(1.5, cw)} height={ROWS * ROW + 5} />}
         </svg>
       )}
       <p className="cal-readout num">
         {hover !== null
-          ? `${fmtDate(daily.t0 + hover * DAY, lang, false)}: ${tr('luz', 'light')} ${pct(daily.sun[hover])}, ${tr('enlace', 'link')} ${pct(daily.earth[hover])}. ${tr('Clic para aterrizar este día; Mayús + clic lo añade como escenario.', 'Click to land on this day; Shift + click adds it as a scenario.')}`
+          ? `${fmtDate(daily.t0 + hover * DAY, lang, false)}: ${tr('luz', 'light')} ${pct(daily.sun[hover])}, ${tr('enlace', 'link')} ${pct(daily.earth[hover])}${
+              hover < scores.days ? tr(`; una misión de ${durationDays} d que aterrice este día tendría índice ${scores.score[hover]}`, `; a ${durationDays}-day mission landing this day would score ${scores.score[hover]}`) : ''
+            }. ${tr('Clic para aterrizar este día; Mayús + clic lo añade como escenario.', 'Click to land on this day; Shift + click adds it as a scenario.')}`
           : tr('El recuadro marca el escenario activo. Clic en un día para mover el alunizaje; Mayús + clic para añadirlo como escenario.', 'The box marks the active scenario. Click a day to move the landing; Shift + click to add it as a scenario.')}
       </p>
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------- Best landing dates
+
+interface BestDatesProps {
+  scores: WindowScores;
+  best: number[];
+  requireSun: boolean;
+  canAdd: boolean;
+  onRequireSun: (on: boolean) => void;
+  onApply: (t: number) => void;
+  onAdd: (t: number) => void;
+}
+
+export const BestDates = memo(function BestDates({ scores, best, requireSun, canAdd, onRequireSun, onApply, onAdd }: BestDatesProps) {
+  const tr = useTr();
+  const lang = useLang();
+  return (
+    <div className="best-dates">
+      <label className="check">
+        <input type="checkbox" checked={requireSun} onChange={(e) => onRequireSun(e.target.checked)} />
+        {tr('Solo fechas con Sol visible en el alunizaje', 'Only dates with the Sun visible at landing')}
+      </label>
+      {best.length === 0 ? (
+        <p className="empty">
+          {requireSun
+            ? tr('Ninguna fecha de estos doce meses tiene Sol en el alunizaje. Desmarca la casilla para ver las demás.', 'No date in these twelve months has the Sun up at landing. Untick the box to see the others.')
+            : tr('No hay fechas que evaluar.', 'There are no dates to evaluate.')}
+        </p>
+      ) : (
+        <div className="compare-scroll">
+          <table className="compare best-dates-table">
+            <thead>
+              <tr>
+                <th>{tr('Alunizaje', 'Landing')}</th>
+                <th>{tr('Luz solar', 'Sunlight')}</th>
+                <th>{tr('Noche más larga', 'Longest night')}</th>
+                <th>{tr('Enlace', 'Link')}</th>
+                <th>{tr('Índice', 'Index')}</th>
+                <th aria-label={tr('Acciones', 'Actions')} />
+              </tr>
+            </thead>
+            <tbody>
+              {best.map((d, k) => {
+                const t = scores.t0 + d * DAY;
+                return (
+                  <tr key={d}>
+                    <th scope="row">
+                      <span className="pick-n num">{k + 1}</span>
+                      <span className="num">{fmtDate(t, lang, false)}</span>
+                    </th>
+                    <td className="num">{pct(scores.sunShare[d])}</td>
+                    <td className="num">{scores.longestDarkH[d] > 0.01 ? fmtDuration(scores.longestDarkH[d] * 3600e3) : tr('ninguna', 'none')}</td>
+                    <td className="num">{pct(scores.earthShare[d])}</td>
+                    <td className="num score-cell">{scores.score[d]}</td>
+                    <td className="row-actions">
+                      <button type="button" onClick={() => onApply(t)}>
+                        {tr('Aterrizar este día', 'Land on this day')}
+                      </button>
+                      <button type="button" disabled={!canAdd} title={canAdd ? undefined : tr('Hay seis escenarios, el máximo.', 'There are six scenarios, the maximum.')} onClick={() => onAdd(t)}>
+                        {tr('Añadir como escenario', 'Add as scenario')}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 });

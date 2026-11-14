@@ -1246,3 +1246,61 @@ dd {
   border: 1px solid var(--line);
   background: repeating-linear-gradient(45deg, rgba(236, 231, 219, 0.5) 0 2px, rgba(4, 5, 8, 0.8) 2px 5px);
 }
+
+/* ---------- best landing dates (S05) ---------- */
+.cal-score {
+  fill: var(--dust);
+}
+.cal-best path {
+  fill: var(--dust);
+}
+.cal-best text {
+  fill: var(--dust);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.best-dates {
+  margin: 14px 0 0 64px;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--dust-2);
+  cursor: pointer;
+}
+.check input {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--dust);
+}
+.best-dates-table tbody tr {
+  cursor: default;
+}
+.best-dates-table tbody th {
+  padding-left: 0;
+  border-left: 0;
+  font-weight: 600;
+}
+.best-dates-table tbody th span.num:not(.pick-n) {
+  font-size: inherit;
+  color: inherit;
+}
+.compare tbody th span.pick-n {
+  display: inline-grid;
+  font-size: 12px;
+  color: var(--chassis);
+}
+.best-dates .empty {
+  padding: 8px 0;
+}
+@media (max-width: 760px) {
+  .best-dates {
+    margin-left: 0;
+  }
+}

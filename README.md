@@ -11,8 +11,9 @@ Proyecto para el reto de NASA Space Apps sobre planificación de misiones al pol
 | Posición del Sol y la Tierra respecto al horizonte | Panorama de 360° con la silueta real del terreno y primeros planos a escala del disco solar y terrestre |
 | Tiempo hasta la puesta de Sol o de la Tierra | Cuenta regresiva en vivo: "se oculta en 3 d 4 h", "enlace vuelve en 13 h" |
 | Energía y comunicaciones | Porcentaje de luz, noche más larga, porcentaje de enlace, cortes, irradiancia e índice de viabilidad |
-| Comparar sitios | Tabla lado a lado con las ventanas de luz y enlace alineadas en el tiempo |
-| Comparar fechas | Calendario de 12 meses, día a día; un clic mueve el alunizaje |
+| Comparar sitios | Tabla de escenarios lado a lado, con las ventanas alineadas por día de misión, y enlace para compartirla |
+| Por qué un cambio pequeño importa | Buscador que evalúa la zona alrededor de un punto y propone los cinco mejores lugares cercanos |
+| Comparar fechas | Escenarios con el mismo sitio en fechas distintas, calendario de 12 meses y las cinco mejores fechas de alunizaje |
 | Sitios notables y coordenadas propias | 18 sitios (Artemis, CLPS, Apollo, ISRO, JAXA, CNSA) más coordenadas manuales o clic en el mapa |
 | Mapas 2D y 3D | Mapa polar con sombras calculadas en vivo en la GPU y globo 3D iluminado por el Sol real |
 | Dinámica temporal | Reproducción animada de toda la misión |
