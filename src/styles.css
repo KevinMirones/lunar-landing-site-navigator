@@ -1076,3 +1076,41 @@ dd {
   font-size: 15px;
   line-height: 1;
 }
+
+/* ---------- shareable links (S02) ---------- */
+.copy-link {
+  height: 32px;
+  min-width: 124px;
+  padding: 0 12px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.copy-link:hover {
+  border-color: var(--dust-3);
+}
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 24px;
+  background: var(--raised);
+  border-bottom: 1px solid var(--line);
+}
+.notice p,
+.notice label {
+  flex: 1 1 320px;
+  color: var(--dust);
+}
+.notice input {
+  width: 100%;
+}
+.notice button {
+  height: 30px;
+  padding: 0 12px;
+  background: none;
+  border: 1px solid var(--dust-3);
+  border-radius: 4px;
+}

@@ -16,6 +16,7 @@ import {
 } from './lib/scenario';
 import { dailyShares, frameSeries, siteSeries, skyAt, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
+import { decode, encode, fromShared, toShared } from './lib/urlState';
 import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, type Heightmap } from './lib/util';
 import { Globe } from './components/Globe';
 import { Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
@@ -42,24 +43,62 @@ function defaultScenarios(): Scenario[] {
   return ['ridge', 'shackleton-floor', 'malapert', 'im2'].map((siteId, i) => ({ id: `e${i + 1}`, siteId, landing, durationDays: 30, mast: 2 }));
 }
 
+/** Initial state: whatever the link in the address bar carries, defaults for the rest. */
+function readLink() {
+  const { state, problems } = decode(window.location.search, (id) => CATALOG.some((c) => c.id === id));
+  const restored = state.scenarios ? fromShared(state.scenarios) : { scenarios: defaultScenarios(), custom: [] as Site[] };
+  const active = restored.scenarios[state.active ?? 0];
+  const activeSite = [...CATALOG, ...restored.custom].find((c) => c.id === active.siteId) ?? FALLBACK_SITE;
+  return {
+    ...restored,
+    activeId: active.id,
+    elapsed: Math.min((state.hours ?? 0) * HOUR, active.durationDays * DAY),
+    lang: state.lang ?? ('es' as Lang),
+    view: state.view ?? (activeSite.lat <= -80 ? ('polar' as const) : ('globe' as const)),
+    mode: state.mode ?? ('sun' as const),
+    damaged: problems.length > 0,
+  };
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // No clipboard API over plain http (for example when shared on the local network).
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    return ok;
+  }
+}
+
 export default function App() {
-  const [lang, setLang] = useState<Lang>('es');
+  const [boot] = useState(readLink);
+  const [lang, setLang] = useState<Lang>(boot.lang);
   const tr = (es: string, en: string) => (lang === 'es' ? es : en);
 
-  const [custom, setCustom] = useState<Site[]>([]);
-  const customCount = useRef(0);
+  const [custom, setCustom] = useState<Site[]>(boot.custom);
+  const customCount = useRef(boot.custom.length);
   const sites = useMemo(() => [...CATALOG, ...custom], [custom]);
   const siteOf = useCallback((id: string) => sites.find((s) => s.id === id) ?? FALLBACK_SITE, [sites]);
 
-  const [scenarios, setScenarios] = useState<Scenario[]>(defaultScenarios);
-  const [activeId, setActiveId] = useState('e1');
+  const [scenarios, setScenarios] = useState<Scenario[]>(boot.scenarios);
+  const [activeId, setActiveId] = useState(boot.activeId);
   /** Time since the active scenario's landing; kept when switching scenario so rows compare the same mission day. */
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(boot.elapsed);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
 
-  const [mapView, setMapView] = useState<'polar' | 'globe'>('polar');
-  const [mapMode, setMapMode] = useState<'sun' | 'earth'>('sun');
+  const [mapView, setMapView] = useState<'polar' | 'globe'>(boot.view);
+  const [mapMode, setMapMode] = useState<'sun' | 'earth'>(boot.mode);
+  const [linkDamaged, setLinkDamaged] = useState(boot.damaged);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [heightmap, setHeightmap] = useState<Heightmap | null | 'loading'>('loading');
   const [horizons, setHorizons] = useState<Record<string, LoadedHorizon>>({});
   const inflight = useRef(new Set<string>());
@@ -251,6 +290,35 @@ export default function App() {
     });
   }, []);
 
+  // ---- shareable link
+  const link = useCallback(
+    () =>
+      `${window.location.origin}${window.location.pathname}?${encode({
+        scenarios: toShared(scenarios, siteOf),
+        active: Math.max(0, scenarios.findIndex((s) => s.id === active.id)),
+        hours: Math.min(elapsed, durationMs) / HOUR,
+        lang,
+        view: mapView,
+        mode: mapMode,
+      })}`,
+    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode],
+  );
+  useEffect(() => {
+    if (playing) return; // the address waits until playback stops
+    const id = window.setTimeout(() => window.history.replaceState(null, '', link()), 300);
+    return () => window.clearTimeout(id);
+  }, [link, playing]);
+  const copyLink = async () => {
+    const url = link();
+    window.history.replaceState(null, '', url);
+    setCopyState((await copyText(url)) ? 'copied' : 'manual');
+  };
+  useEffect(() => {
+    if (copyState !== 'copied') return;
+    const id = window.setTimeout(() => setCopyState('idle'), 2500);
+    return () => window.clearTimeout(id);
+  }, [copyState]);
+
   const rows: ScenarioRow[] = useMemo(
     () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null })),
     [scenarios, siteOf, analyses],
@@ -292,6 +360,9 @@ export default function App() {
                 ))}
               </div>
             </fieldset>
+            <button type="button" className="copy-link" onClick={copyLink}>
+              <span aria-live="polite">{copyState === 'copied' ? tr('Enlace copiado', 'Link copied') : tr('Copiar enlace', 'Copy link')}</span>
+            </button>
             <div className="segmented lang" role="group" aria-label={tr('Idioma', 'Language')}>
               <button type="button" aria-pressed={lang === 'es'} onClick={() => setLang('es')}>
                 ES
@@ -302,6 +373,31 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {linkDamaged && (
+          <div className="notice" role="status">
+            <p>
+              {tr(
+                'El enlace no se pudo leer completo. Lo que faltaba se sustituyó por los valores por defecto.',
+                'The link could not be read completely. What was missing was replaced with default values.',
+              )}
+            </p>
+            <button type="button" onClick={() => setLinkDamaged(false)}>
+              {tr('Entendido', 'Got it')}
+            </button>
+          </div>
+        )}
+        {copyState === 'manual' && (
+          <div className="notice" role="status">
+            <label>
+              {tr('Este navegador no permite copiar automáticamente. Copia el enlace a mano:', 'This browser does not allow automatic copying. Copy the link by hand:')}
+              <input readOnly value={link()} onFocus={(e) => e.currentTarget.select()} />
+            </label>
+            <button type="button" onClick={() => setCopyState('idle')}>
+              {tr('Cerrar', 'Close')}
+            </button>
+          </div>
+        )}
 
         <section className="hero" aria-label={tr('Vista desde el sitio', 'View from the site')}>
           <div className="hero-head">
