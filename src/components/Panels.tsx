@@ -6,7 +6,7 @@ import { discFraction, nextEvent, type Horizon, type Metrics, type Sky, type Win
 import type { CommsResult } from '../lib/comms';
 import type { PowerResult } from '../lib/power';
 import { fmtWattHours } from './Power';
-import { normLon, type Site } from '../lib/sites';
+import { normLon, siteMatches, type Site } from '../lib/sites';
 import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
 import { Closeup } from './Panorama';
 import { Term } from './Term';
@@ -33,6 +33,8 @@ export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, can
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const shown = sites.filter((s) => siteMatches(s, query, lang));
 
   const groups: Array<{ key: Site['group']; title: string }> = [
     { key: 'south', title: tr('Polo sur', 'South pole') },
@@ -56,8 +58,17 @@ export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, can
 
   return (
     <nav className="sites" aria-label={tr('Sitios de alunizaje', 'Landing sites')}>
+      <input
+        type="search"
+        className="site-search"
+        value={query}
+        aria-label={tr('Buscar sitios por nombre, programa o año', 'Search sites by name, programme or year')}
+        placeholder={tr('Buscar: nombre, programa o año', 'Search: name, programme or year')}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {shown.length === 0 && <p className="empty">{tr('Ningún sitio coincide con la búsqueda.', 'No site matches the search.')}</p>}
       {groups.map((g) => {
-        const list = sites.filter((s) => s.group === g.key);
+        const list = shown.filter((s) => s.group === g.key);
         if (!list.length) return null;
         return (
           <section key={g.key}>

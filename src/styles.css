@@ -1936,3 +1936,10 @@ button.toggle.focus[aria-pressed='true'] {
     color: #333;
   }
 }
+
+/* ---------- extended catalogue (S13) ---------- */
+.site-search {
+  width: calc(100% - 40px);
+  margin: 12px 20px 4px 24px;
+  height: 32px;
+}
