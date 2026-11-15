@@ -2,6 +2,11 @@
 // front matter of each Markdown file. The index is never edited by hand:
 // change a spec's `estado` and run `npm run docs:index`.
 //
+// Every document holds English first and Spanish below, and so does the index:
+// `title` and `summary` are the English of `titulo` and `resumen`. The values of
+// `estado`, `prioridad` and `tipo` stay in Spanish in the files and are shown in
+// English in the English half.
+//
 //   node scripts/build-docs-index.mjs          write the index
 //   node scripts/build-docs-index.mjs --check  fail if the index is stale or a doc is invalid
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -14,13 +19,26 @@ const INDEX = join(DOCS, 'README.md');
 const ESTADOS = ['pendiente', 'en curso', 'hecha', 'recortada'];
 const PRIORIDADES = ['imprescindible', 'recortable'];
 const TIPOS = ['hito', 'decisión', 'hallazgo', 'incidencia'];
+const EN = {
+  pendiente: 'pending',
+  'en curso': 'in progress',
+  hecha: 'done',
+  recortada: 'cut',
+  imprescindible: 'essential',
+  recortable: 'can be cut',
+  hito: 'milestone',
+  decisión: 'decision',
+  hallazgo: 'finding',
+  incidencia: 'incident',
+};
+const en = (value) => EN[value] ?? value;
 
 // Documents that are not specs or history entries. Missing files are skipped.
 const OTHER = [
-  ['../README.md', 'README del proyecto', 'Qué es LUMINA, cómo funciona y cómo arrancarlo.'],
-  ['PLAN.md', 'Plan de implementación', 'Qué está hecho, qué falta y en qué orden; reparto, reglas de trabajo, recortes y riesgos.'],
-  ['PITCH.md', 'Guion para el jurado', 'Problema, resultados, demostración de tres minutos y preguntas probables.'],
-  ['VALIDACION.md', 'Validación científica', 'Comparación de los resultados de LUMINA con valores publicados.'],
+  ['../README.md', 'README del proyecto', 'Qué es LUMINA, cómo funciona y cómo arrancarlo.', 'Project README', 'What LUMINA is, how it works and how to start it.'],
+  ['PLAN.md', 'Plan de implementación', 'Qué está hecho, qué falta y en qué orden; reparto, reglas de trabajo, recortes y riesgos.', 'Implementation plan', 'What is done, what is left and in what order; tracks, working rules, cuts and risks.'],
+  ['PITCH.md', 'Guion para el jurado', 'Problema, resultados, demostración de tres minutos y preguntas probables.', 'Pitch for the jury', 'Problem, results, three-minute demo and likely questions.'],
+  ['VALIDACION.md', 'Validación científica', 'Comparación de los resultados de LUMINA con valores publicados.', 'Scientific validation', "Comparison of LUMINA's results with published values."],
 ];
 
 const errors = [];
@@ -70,7 +88,7 @@ function oneOf(doc, key, allowed) {
 const specs = read('specs');
 const ids = new Set();
 for (const s of specs) {
-  need(s, ['id', 'titulo', 'estado', 'dia', 'prioridad', 'depende', 'resumen']);
+  need(s, ['id', 'titulo', 'title', 'estado', 'dia', 'prioridad', 'depende', 'resumen', 'summary']);
   oneOf(s, 'estado', ESTADOS);
   oneOf(s, 'prioridad', PRIORIDADES);
   if (s.meta.id && !s.file.startsWith(`${s.meta.id}-`)) errors.push(`${s.rel}: el nombre del archivo debe empezar por "${s.meta.id}-"`);
@@ -82,7 +100,7 @@ for (const s of specs) for (const d of deps(s)) if (!ids.has(d)) errors.push(`${
 
 const history = read('historial');
 for (const h of history) {
-  need(h, ['fecha', 'titulo', 'tipo', 'resumen']);
+  need(h, ['fecha', 'titulo', 'title', 'tipo', 'resumen', 'summary']);
   oneOf(h, 'tipo', TIPOS);
 }
 for (const [file] of OTHER) {
@@ -94,29 +112,69 @@ const count = (estado) => specs.filter((s) => s.meta.estado === estado).length;
 const byId = Object.fromEntries(specs.map((s) => [s.meta.id, s]));
 const link = (s) => `[${s.meta.id}](${s.rel})`;
 
-const lines = [
+const depsOf = (s) =>
+  deps(s)
+    .map((d) => (byId[d] ? link(byId[d]) : d))
+    .join(', ') || '—';
+const others = OTHER.filter(([file]) => existsSync(join(DOCS, file)));
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+const english = [
+  '<a id="en"></a>',
+  '**English** | [Español](#es)',
+  '',
+  '# LUMINA documentation',
+  '',
+  '> Index generated with `npm run docs:index` from the front matter of each file. Do not edit it by hand.',
+  '',
+  '## Where to start',
+  '',
+  ...others.map(([file, , , title, about]) => `- [${title}](${file}): ${about}`),
+  '',
+  '## Specs',
+  '',
+  `${specs.length} specs: ${ESTADOS.map((e) => `${count(e)} ${en(e)}`).join(', ')}.`,
+  '',
+  '| ID | Spec | Day | Priority | Status | Depends on |',
+  '| --- | --- | --- | --- | --- | --- |',
+  ...specs.map((s) => `| ${s.meta.id} | [${s.meta.title}](${s.rel})<br>${s.meta.summary} | ${s.meta.dia} | ${en(s.meta.prioridad)} | ${en(s.meta.estado)} | ${depsOf(s)} |`),
+  '',
+  '## Project history',
+  '',
+  'Most recent first.',
+  '',
+  '| Date | Entry | Type |',
+  '| --- | --- | --- |',
+  ...[...history].reverse().map((h) => `| ${h.meta.fecha} | [${h.meta.title}](${h.rel})<br>${h.meta.summary} | ${en(h.meta.tipo)} |`),
+  '',
+  '## How to maintain this',
+  '',
+  '- **Every document is bilingual:** English first, Spanish below. In the front matter, `title` and `summary` are the English of `titulo` and `resumen`.',
+  '- **Changing the status of a spec:** edit `estado` in its front matter (`' + ESTADOS.join('`, `') + '`, that is: ' + ESTADOS.map(en).join(', ') + ') and run `npm run docs:index`.',
+  '- **Adding a spec:** copy [specs/_plantilla.md](specs/_plantilla.md) with the next number (`S18-name.md`).',
+  '- **Adding a history entry:** create `historial/YYYY-MM-DD-NN-name.md` with `fecha`, `titulo`, `title`, `tipo` (`' + TIPOS.join('`, `') + '`, that is: ' + TIPOS.map(en).join(', ') + '), `resumen` and `summary`.',
+  '- **Checking:** `npm run docs:check` fails if the index is out of date, a field is missing or there is a broken link.',
+];
+
+const spanish = [
+  '<a id="es"></a>',
+  '**Español** | [English](#en)',
+  '',
   '# Documentación de LUMINA',
   '',
   '> Índice generado con `npm run docs:index` a partir de la cabecera de cada archivo. No lo edites a mano.',
   '',
   '## Por dónde empezar',
   '',
-  ...OTHER.filter(([file]) => existsSync(join(DOCS, file))).map(([file, title, about]) => `- [${title}](${file}): ${about}`),
+  ...others.map(([file, title, about]) => `- [${title}](${file}): ${about}`),
   '',
   '## Specs',
   '',
-  `${specs.length} specs: ${ESTADOS.map((e) => `${count(e)} ${e}${count(e) === 1 ? '' : 's'}`.replace('en cursos', 'en curso')).join(', ')}.`,
+  `${specs.length} specs: ${[plural(count('pendiente'), 'pendiente', 'pendientes'), `${count('en curso')} en curso`, plural(count('hecha'), 'hecha', 'hechas'), plural(count('recortada'), 'recortada', 'recortadas')].join(', ')}.`,
   '',
   '| ID | Spec | Día | Prioridad | Estado | Depende de |',
   '| --- | --- | --- | --- | --- | --- |',
-  ...specs.map(
-    (s) =>
-      `| ${s.meta.id} | [${s.meta.titulo}](${s.rel})<br>${s.meta.resumen} | ${s.meta.dia} | ${s.meta.prioridad} | ${s.meta.estado} | ${
-        deps(s)
-          .map((d) => (byId[d] ? link(byId[d]) : d))
-          .join(', ') || '—'
-      } |`,
-  ),
+  ...specs.map((s) => `| ${s.meta.id} | [${s.meta.titulo}](${s.rel})<br>${s.meta.resumen} | ${s.meta.dia} | ${s.meta.prioridad} | ${s.meta.estado} | ${depsOf(s)} |`),
   '',
   '## Historial del proyecto',
   '',
@@ -128,12 +186,15 @@ const lines = [
   '',
   '## Cómo mantener esto',
   '',
+  '- **Todos los documentos son bilingües:** primero en inglés y debajo en español. En la cabecera, `title` y `summary` son la versión en inglés de `titulo` y `resumen`.',
   '- **Cambiar el estado de una spec:** edita `estado` en su cabecera (`' + ESTADOS.join('`, `') + '`) y ejecuta `npm run docs:index`.',
-  '- **Añadir una spec:** copia [specs/_plantilla.md](specs/_plantilla.md) con el siguiente número (`S15-nombre.md`).',
-  '- **Añadir una entrada al historial:** crea `historial/AAAA-MM-DD-NN-nombre.md` con `fecha`, `titulo`, `tipo` (`' + TIPOS.join('`, `') + '`) y `resumen`.',
+  '- **Añadir una spec:** copia [specs/_plantilla.md](specs/_plantilla.md) con el siguiente número (`S18-nombre.md`).',
+  '- **Añadir una entrada al historial:** crea `historial/AAAA-MM-DD-NN-nombre.md` con `fecha`, `titulo`, `title`, `tipo` (`' + TIPOS.join('`, `') + '`), `resumen` y `summary`.',
   '- **Comprobar:** `npm run docs:check` falla si el índice está desactualizado, falta un campo o hay un enlace roto.',
   '',
 ];
+
+const lines = [...english, '', '---', '', ...spanish];
 const output = lines.join('\n');
 
 if (errors.length) {

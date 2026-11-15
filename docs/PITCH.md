@@ -1,3 +1,87 @@
+<a id="en"></a>
+**English** | [Español](#es)
+
+# LUMINA: pitch for the jury
+
+## The idea in one sentence
+
+LUMINA answers in seconds the question that today takes three tools and hours of work: **if I land here, on this date, will I have sunlight for my panels and line of sight to Earth?**
+
+## The problem
+
+Near the lunar south pole the Sun barely rises a few degrees above the horizon. With light that low, a hill 50 km away decides whether a lander has power or freezes, and libration makes Earth appear and disappear behind the terrain every month.
+
+Quickmap, Moon Trek and JPL Horizons have the data, but they are built for detailed analysis: to assess a single site and date you have to work through several interfaces and interpret tables. When a launch slips, science and engineering teams need to compare alternatives now, not next week.
+
+## What we show
+
+Four results that come out of the tool itself, with real NASA data:
+
+1. **1.6 km changes everything, and sometimes 40 m does.** On the Malapert massif, a point on the south slope has 0% direct link to Earth during a 30-day mission. At the summit, 1.6 km away, it has 100% link and 100% sunlight. And 40 m south of the summit the link already drops to 51%. LUMINA finds that point with its search.
+2. **Same pole, opposite fates.** For a landing on 14 November 2026: the ridge between Shackleton and de Gerlache gets Sun for 100% of 30 days; the floor of Shackleton, 20 km away, 0%.
+3. **The calendar decides.** The same ridge, landing in April 2027 instead of November 2026, drops from 100% to 56% sunlight: it is lunar southern winter. November is the best case of the year, and we say so.
+4. **Accuracy you can check.** The ephemeris agrees with JPL Horizons with a maximum error of 0.0037° over 300 comparisons. And the computed sunlight agrees with the published one: at a point on the ridge, Gläser et al. (2018) give 82.0% solar visibility over 20 years and 165 hours of longest shadow; LUMINA gives 82.1% and 165 hours. The full table, with the differences that do not match and why, is in [VALIDACION.md](VALIDACION.md).
+
+## How it works
+
+- **Ephemeris in the browser.** Position of the Sun and Earth and orientation of the Moon, libration included. 14 microseconds per instant, which lets a whole mission be animated without waiting.
+- **Real horizon.** The server casts 720 rays over the LOLA topography from Lunar Reconnaissance Orbiter (20 m cells next to the pole, 40 and 80 m further out), with the Moon's curvature, and gets the terrain silhouette seen from the site in 55 milliseconds.
+- **No atmosphere, no excuses.** On the Moon there is no refraction and no twilight. We compare each body's disc with the terrain line and get the fraction that shows.
+- **Live shadow map.** The graphics card repeats that calculation for every pixel of the south pole, so you watch the shadow sweep across the craters as time advances.
+
+## Demo in 3 minutes
+
+Before starting, set the landing to 14 November 2026 at 00:00 UTC: the figures in this pitch are for that date.
+
+1. **The sky (30 s).** Open on Connecting Ridge. Point at the panorama: the Sun at 1.5°, grazing the terrain, Earth hidden. "This is what the lander's camera would see."
+2. **Time (30 s).** Press Play. The Sun circles the horizon without setting; Earth rises and falls with libration. On the map, the shadows turn.
+3. **Compare sites (45 s).** Scroll to the table. Four sites, same dates: ridge 100% sunlight, Shackleton floor 0%, Malapert summit 100% sunlight and link. "Science wants the ice on the floor; engineering wants the light on the ridge. Here they negotiate with the same numbers."
+4. **The delay (45 s).** "The launch slips to April." Click April on the year calendar. Everything is recomputed at once: in winter the ridge drops to 56% sunlight.
+5. **Any point (30 s).** Click the map on a crater: horizon, windows and index in under a second. Change the mast from 2 to 10 m and watch the horizon open up.
+6. **The proof (15 s).** Press "Check with JPL Horizons": a difference of thousandths of a degree, live.
+
+## Who it is for
+
+- **Mission planners (CLPS, Artemis):** quick screening of sites and dates before the detailed analysis, and a common language between science and engineering.
+- **Teachers:** the contrast between Apollo 11 (14 days of light, 14 of night, Earth fixed in the sky) and the south pole is clear at a glance.
+- **The public:** plain-language sentences generated from the data, in Spanish and English.
+
+## What it does not do (yet)
+
+Saying it before they ask builds credibility:
+
+- Real terrain covers 80°S to 90°S; outside it a smooth Moon is used.
+- Cells of 20 to 80 m do not show rocks or relief a few metres high, and near a ridge crest 40 m change the result.
+- At ground level our numbers differ from the published ones by up to 20 points; at 2 m, which is where a panel goes, they agree.
+- The link is geometric: it does not model antennas or ground stations.
+- The viability index is indicative, not a mission criterion.
+
+## Next phase
+
+- 5 m LOLA topography around the candidate sites.
+- North pole and global relief.
+- Exportable report.
+- Visibility of relay satellites for sites without line of sight.
+
+## Likely questions
+
+**Why not use JPL Horizons directly?** Horizons gives the Sun's angle over an ideal sphere, for one site and one query at a time. It knows nothing about the terrain and does not compare scenarios. We use it as the reference to validate against.
+
+**Where does the terrain come from?** From the LOLA laser altimeter on Lunar Reconnaissance Orbiter: four public products from NASA's Planetary Data System, at 20, 40, 80 and 240 m per cell.
+
+**Where do the site coordinates come from?** Each site says so on screen. Those of missions already flown and of the most illuminated points are published. NASA gives regions for Artemis III, not points, so those sites are representative and are labelled as such.
+
+**Have you compared the sunlight with anything published?** Yes: with the LOLA team's 18.6-year maps and with Gläser et al. (2014 and 2018). At 2 m above ground we agree to tenths of a point at two of four sites and to under 3 points at a third; at ground level we do not, and we explain why.
+
+**How accurate is a sunlight window?** The ephemeris contributes an error of thousandths of a degree; the real limit is the terrain. That is why each site states the resolution used, and the validation shows how much the results change between 240 m and 20 m.
+
+**Does it work offline?** The web app computes the ephemeris locally. Without a terrain server it keeps working with a smooth Moon and says so.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
+
 # LUMINA: guion para el jurado
 
 ## La idea en una frase

@@ -1,12 +1,168 @@
 ---
 id: S11
 titulo: Vista 3D del terreno
+title: 3D view of the terrain
 estado: hecha
 dia: 5
 prioridad: recortable
 depende: S06
 resumen: Ponerse en el sitio, a la altura del mástil, y mirar alrededor mientras el Sol y la Tierra se mueven sobre el relieve real.
+summary: Stand at the site, at mast height, and look around while the Sun and Earth move over the real relief.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S11: 3D view of the terrain
+
+**Owner:** Andrés, on a separate track of the [plan](../PLAN.md#who-does-what). The other tracks do not touch this spec or get ahead on any of it.
+
+## Status
+
+**Phase 1 implemented** on the `feat/s11-vista-3d` branch (15 November 2026) and merged into `main`.
+
+**Integrated with S08 to S16** the same day, on the `integracion-s11` branch:
+
+- The browser flow is renamed [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) and uses the shared helpers of [S15](S15-pruebas-de-navegador.md), so it is part of `npm run e2e`.
+- **Precomputed patches (criterion 11): done.** `npm run precompute` was run on a machine with the fine grids: 24 patches and their index in `server/data/patches/` (3.2 MB). The 36 horizons the same script writes came out identical to the ones already there.
+
+Missing:
+
+- **Performance on a real integrated graphics card** (criterion 9). Measured only in headless Edge on the development laptop.
+- **Phase 2**, optional.
+- Review by another person and the pull request.
+
+## Problem
+
+The panorama shows the horizon as a flat silhouette with the vertical exaggerated about 25 times. It is hard to picture what the site really looks like, and why a summit 30 km away is enough to put out the Sun. The challenge brief suggests "3D visualisations of the surface". The reference is Street View: it puts you at a point and you can look around. The difference is that here the sky does not stand still, because the Sun and Earth follow their paths.
+
+## What the user will see
+
+It is done in two phases. Phase 1 is the goal of this spec. Phase 2 is only done if there is time to spare before [S14](S14-robustez-y-calidad.md).
+
+### Phase 1: view from the site
+
+1. **Expand button** in the bottom right corner of the panorama, with the text "View in 3D".
+2. Pressing it makes the 3D view **fill the whole screen**. It closes with the ✕ button or with `Esc`, returning to the app as it was.
+3. The camera is **at the site, at mast height** (2, 10 or 50 m). On opening it looks **towards the Sun**, at its height. If the Sun is hidden, it looks at the summit that covers it.
+4. **It turns** by dragging with the mouse or a finger, and with the arrow keys. There is no zoom.
+5. You see the **real relief** around the site, lit from the real direction of the Sun and with its shadows. Beyond 32 km, the distant summits show as a silhouette.
+6. The **Sun and Earth** are at their real position, together with their **paths** over the whole scenario (the same curves as in the panorama). By default they are shown four times larger. A "True scale" switch shows them at their real size (0.53° and 1.9°).
+7. **Time keeps running.** At the bottom there are play and pause, the speed, a bar to drag the date, and the visible date. It is the same state as the app's: on closing, time stays where it was left.
+8. **Changing the mast** from the view raises or lowers the camera with a smooth transition. Going up, the relief looks lower and the Sun is less covered, as in the real computation. The mast chosen stays chosen in the app.
+9. **Vertical exaggeration**: a switch between "Real" and "×3".
+10. **Minimal indicator** in a corner: the heading ("Looking NE 42°"), the state of the bodies ("Sun visible 100% · Earth hidden") and the terrain resolution ("Terrain 240 m", with "(precomputed)" if it comes from disk). Nothing else is drawn over the landscape: no grid, no cardinal points, no labels.
+11. Black sky, no atmosphere, with a decorative star field like the panorama's.
+12. **Where there is no topography**, the button appears disabled and explains why. Since [S17](S17-relieve-global.md) that only happens with a custom point away from the pole, on a server without the global grid; before, it happened everywhere north of 80°S.
+13. **On phone and tablet** the basics work: turning with a finger and time controls adapted to a small screen, at reduced quality.
+
+### Phase 2: aerial view (if there is time)
+
+- A third tab on the map, "3D terrain", next to "South pole" and "Globe", with an aerial camera that orbits over the site.
+- It uses the same patches and the same shading as phase 1.
+- The shareable link opens it with `v=terrain`.
+
+## Design
+
+### Patch service (server)
+
+**Two nested patches**, centred on the site, of 257 × 257 vertices. The odd number leaves the site on the centre vertex:
+
+| Patch | Side | Vertices | One vertex every | What for |
+| --- | --- | --- | --- | --- |
+| Near | 8 km | 257 × 257 | 31.25 m | What surrounds the lander |
+| Far | 64 km | 257 × 257 | 250 m | The landscape out to 32 km |
+
+With the 240 m grid, which is the one most machines have installed, the near patch interpolates: the ground looks smooth, but the geometry is correct. With the fine grids of [S06](S06-terreno-multirresolucion.md), the same patch picks up the 20 m detail with no code change.
+
+**`GET /api/patch?lat&lon&size=8|64`**, in [patch.js](../../server/patch.js) and wired up in [app.js](../../server/app.js):
+
+- It returns a square grid of heights in the tangent plane of the site, with east on `x`, north on `y` and row 0 on the northern edge. Each vertex is taken from the finest grid available (`heightAtXY` of [dem.js](../../server/dem.js)). Distance in the plane is treated as distance over the surface: at 32 km, the difference is under 2 m.
+- The heights are relative to the ground at the site, in 16-bit integers with 0.5 m steps. The Moon's curvature is already subtracted, so that distant terrain drops below the horizon.
+- The headers carry the side, the number of vertices and the resolution of the terrain used, as `/api/heightmap` does: `X-Patch-Size-Km`, `X-Patch-Vertices`, `X-Patch-Resolution-M`, and `X-Patch-Precomputed: 1` when it comes from disk.
+- It answers with a 400 error if the size is neither 8 nor 64 km, and with 503 if at that point there is neither installed terrain nor a precomputed patch. Until [S17](S17-relieve-global.md) it also rejected points north of 80°S.
+- Each patch takes about 22 ms to compute, and the server keeps the last 64.
+
+**Precomputed patches.** The public server does not have the fine grids ([S03](S03-ci-y-despliegue.md)). `npm run precompute` also saves the two patches of each polar catalogue site in `server/data/patches/`: 132 KB each, about 3 MB for the 12 sites, plus an `index.json`. They go in the repository. The server uses the precomputed one when its terrain is finer than the installed one, with the same rule as the horizons. The static copy of S03 will include them.
+
+### Component (client)
+
+**[Terrain3D.tsx](../../src/components/Terrain3D.tsx)**, with `three.js`, which [Globe.tsx](../../src/components/Globe.tsx) already uses. The geometry that is not drawing (directions, exaggeration, heading, initial view, ring of summits) goes in [terrain3d.ts](../../src/lib/terrain3d.ts), so it can be tested without a browser.
+
+- **Scene** in the local frame of the site, in metres: east on `x`, the vertical on `y` and north on `-z`. The camera is at `(0, mast, 0)`, with a 60° vertical field of view, and the tilt is limited to between −30° and +60°. The depth buffer is logarithmic, to draw at once the ground at 1 m and the sky at 1000 km.
+- **Terrain**: two meshes displaced by their heights, about 260 000 triangles. The far one has a hole where the near one is and is clipped to a 32 km circle. The last 250 m of the near one blend into the far one, so its edge falls right on the edges of the hole and leaves no cracks.
+- **Relief beyond 32 km**: a band of 720 segments, one per azimuth of the horizon profile (the same as the panorama's). Each summit is at its distance (`distanceKm`, at least 32.5 km) and at the height given by its angle seen from the mast. That way, what is seen from the camera matches the panorama's profile.
+- **Shadows in a light map.** For each vertex of each patch, a shader walks the heights towards the Sun and stores the part of the solar disc left in view. The ray takes 160 growing steps (90 on narrow screens) and reaches 46 km. The map is only recomputed when the Sun moves; during playback, on every frame. If the summit that covers the Sun in the site's profile is beyond the patch, it goes in as a distant obstacle for all points, corrected for their position. It is exact at the site and approximate at the edges. Conventional shadow maps fail with nearly horizontal light, and one ray per screen pixel would cost too much.
+- **The site rules around the lander.** In the first 150 m, the direct light is the part of the solar disc visible at the site (`sky.sun.frac`), and out to 1.5 km it blends into the light map. That way, the ground around the lander goes dark exactly when the site status says "Hidden". Further out the light map rules, which is why a summit can stay lit with the site in darkness, as happens at the pole. This changes the earlier design, which multiplied the whole landscape by `sunFrac`.
+- **Regolith photometry, simplified.** Lommel-Seeliger, so that the ground with the Sun at 1.5° does not turn black, and a phase function that makes it bright with the Sun behind you and dark against the light. There is a minimal ambient light, so that terrain in shadow can be told from the sky.
+- **Procedural detail.** The LOLA cells are 240 m (20 m at best), so the finer relief is noise. It is undulations of 8 to 600 m that only change the normal and the albedo, never the geometry or the shadows, and fade out where a pixel covers more than they do. They are enough to read the shape of the ground under grazing light.
+- **Distant summits**: the face looking at the camera is treated as a 30° slope with the same photometry, lit if the Sun is above the ideal horizon. The last 7 km of the far patch blend into that shading, so its edge does not show against the silhouette.
+- **Sun and Earth**: discs on a celestial sphere of 1000 km centred on the camera, with their real radius (`sky.sun.radius`, `sky.earth.radius`) multiplied by 4 if true scale is off. The Sun has a halo. The terrain covers them by depth, with no extra computation.
+- **Paths**: lines on the same sphere from `series.sunAz/sunEl` and `series.earthAz/earthEl`, with up to 2000 points. They are drawn before the discs.
+- **×3 exaggeration**: the scene is stretched vertically by 3, camera included. The bodies and their paths are placed with `atan(3 · tan(el))`, which is exactly what the stretch does to any direction. That is why which body is covered and which is not is preserved. The camera tilt does not change on switching, so that the horizon stays in view.
+- **Mast**: the app asks for the horizon again when the mast changes, and the view keeps the previous one until the new one arrives. The camera goes up or down in 0.6 s.
+- **Camera controls**: turning and tilting are handled with pointer events, so that mouse and finger work the same: the scene follows the pointer, as in Street View. The arrows move 5° per press, except when the time bar has the focus. `OrbitControls` is not used.
+- **Quality on small screens**: under 700 px wide, the pixel density is limited to 1.5 and the shadow ray drops to 90 steps. It is the same mechanism that [S14](S14-robustez-y-calidad.md) will make adaptive.
+- **Without WebGL 2**: a clear message inside the layer, which closes as usual, and the app keeps working underneath.
+- **Loaded on demand** with `React.lazy`: the component is a separate chunk of 21 KB (9 KB compressed). `three.js` was already in the initial load because of the globe.
+- **It is drawn only when something changes**: the camera, the instant, the mast or the window size.
+
+### Connection with the app
+
+Only the wiring goes into [App.tsx](../../src/App.tsx): a `terrainOpen` state, the reason the button is disabled and the lazy component. The component receives what the app already computes, without duplicating state: site, mast, `horizon`, `sky`, `series`, the current instant, the scenario's interval, `playing`, `speed` and the functions to change instant, playback, speed and mast. The expand button lives in [Panorama.tsx](../../src/components/Panorama.tsx), which receives `expand: { onExpand, disabledReason }`. The styles go in the "3D view (S11)" section at the end of [styles.css](../../src/styles.css). All texts go through `tr(es, en)`.
+
+**Shareable link.** In phase 1, the full-screen view is not saved in the link. The `v=terrain` value of the `v` parameter of [urlState.ts](../../src/lib/urlState.ts) is reserved for the phase 2 tab. The camera and the exaggeration are never saved.
+
+## Acceptance criteria
+
+Phase 1:
+
+1. `/api/patch` returns height 0 at the centre, and a flat point 32 km away lies about 295 m below the plane, because of the curvature. **Met**: 0 m and between −294 and −296 m on the four edges (automated test).
+2. With true scale and the mast at 2 m, the summits of the horizon match the panorama's silhouette in three different directions (difference under 1°). **Met**: at Connecting Ridge, the floor of Shackleton and Malapert, at 30°, 150° and 270°, the difference is 0.01° or less in eight of the nine directions. The exception is Malapert at 30°, with 0.93°: the panorama does not look at terrain closer than half a cell (120 m) and the patch does draw it.
+3. Taking the mast from 2 to 50 m, the visible horizon drops and matches the panorama's new profile again (difference under 1°). **Met**: 0.01° or less in the nine directions. At Connecting Ridge, for example, at 30° it goes from −1.92° to −1.98°.
+4. The landscape is left without direct light exactly when the site status says "Hidden". **Met** around the lander, by construction: there the light is `sky.sun.frac`. Checked by hand on the floor of Shackleton, where the ground is in darkness and the opposite rim of the crater is lit.
+5. On playing, the Sun and Earth move along their paths. On closing the view, the app's time bar shows the same instant. **Met** (browser test).
+6. With "×3", a body that was hidden stays hidden and a visible one stays visible. **Met** (automated test).
+7. The button is disabled, with its explanation, where there is no topography. **Met** (browser test: first with Apollo 11; since [S17](S17-relieve-global.md), with a custom point at 10°N).
+8. `Esc` and the ✕ button close the view. The arrows turn the camera. **Met** (browser test: six presses turn 30°).
+9. It holds 30 frames per second on an integrated graphics card, and is usable on a mid-range phone. **Partly**: 68 to 84 frames per second during playback, in headless Edge on the development laptop. On an emulated phone (390 × 844, touch), the layout fits and a finger turns the camera. Still to be measured on a real integrated graphics card and a real phone.
+10. Without WebGL it shows a clear message and the rest of the app keeps working. **Met**: checked with WebGL disabled in Edge.
+11. On a server without fine grids, a catalogue site with a precomputed patch shows that relief and says so. **Pending** generation of the patches. The choice between precomputed and installed patch is tested.
+
+Phase 2:
+
+12. The "3D terrain" tab shows the aerial view, and the link with `v=terrain` opens it in another browser. **Pending**.
+
+## Tests
+
+- **Automated**, in [patch.test.js](../../tests/patch.test.js) (12 tests) and [terrain3d.test.ts](../../tests/terrain3d.test.ts) (13 tests): criterion 1, the orientation of the patch, the choice between precomputed and installed patch, the 400 errors, the conversion from azimuth and elevation to direction, the ring of summits against the profile and the exaggeration (criterion 6). In phase 2, the new value of `v` in [urlState.test.ts](../../tests/urlState.test.ts).
+- **In the browser**, in [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) ([S15](S15-pruebas-de-navegador.md)): opening the view, that it draws something, the indicator, turning with the arrows, the mast, playback, closing with `Esc`, that the instant and the mast are kept, and the disabled button where there is no topography. No errors in the console.
+- **By hand**: criteria 2 to 4 and 9 to 11. There are no automated tests of the drawing. Criteria 2 and 3 were measured with a script that walks the 64 km patch in three directions and compares it with `computeHorizon`.
+
+## Out of scope
+
+- Camera zoom.
+- Compass, elevation grid, cardinal points and labels over the landscape.
+- Phase of Earth. It is drawn as a disc.
+- Photographic textures of the terrain. The procedural detail does not claim to be one.
+- Rover traverses or moving across the terrain. The camera only turns.
+- Virtual reality.
+- 3D terrain for points outside 80°S to 90°S. [S17](S17-relieve-global.md) adds it.
+
+## Risks
+
+- **It is not ready in time.** It has to be merged into `main` before [S14](S14-robustez-y-calidad.md) starts. If not, it stays out of version 1.0. That is why phase 2 is optional: phase 1 alone already meets the goal. The panorama and the polar map cover what the brief requires.
+- **Smooth ground with the 240 m grid.** Near the lander little real relief shows until someone with the fine grids generates the precomputed patches (`npm run fetch-data -- --hires`, 345 MB). The procedural detail disguises it, but does not replace it. The distant silhouette does not change, because it comes from the horizon profile.
+- **It collides with other tracks in the shared files** (`App.tsx`, `Panorama.tsx`, `styles.css`, `server/app.js`). What belongs to this spec lives in `Terrain3D.tsx`, `terrain3d.ts` and `server/patch.js`. Only the wiring goes into the shared files.
+- **The approximate shadows do not match the site status.** Around the lander `sunFrac` rules. Further out, the light map can be wrong near the edge of the patch, where what covers the Sun lies outside.
+- **Enlarged bodies.** A disc four times larger can look half covered when the real one is whole, or the other way round. The indicator always shows the real fraction, and true scale is one click away.
+- **Performance on integrated graphics and phones.** The ray has a maximum number of steps, which is lowered on small screens and which the adaptive performance of S14 will be able to adjust.
+- **The precomputed patches have to be regenerated** if the catalogue coordinates change, on a machine with the fine grids.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S11: Vista 3D del terreno
 

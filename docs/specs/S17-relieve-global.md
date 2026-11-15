@@ -1,12 +1,206 @@
 ---
 id: S17
 titulo: Relieve en toda la Luna
+title: Relief across the whole Moon
 estado: hecha
 dia: 7
 prioridad: recortable
 depende: S06, S11, S13
 resumen: Los sitios fuera del polo sur, como los del programa Apollo, tienen horizonte con relieve real y vista 3D, igual que los del polo.
+summary: Sites away from the south pole, such as those of the Apollo programme, have a horizon with real relief and a 3D view, like the polar ones.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S17: Relief across the whole Moon
+
+## Problem
+
+Since [S13](S13-catalogo-y-polo-norte.md), the catalogue has 25 sites away from the south pole: Apollo, Luna, Surveyor, Chang'e, SLIM, Chandrayaan-3 and Blue Ghost. The server only has topography from 75°S to the pole. So, north of 80°S:
+
+- The horizon is that of a smooth sphere and the panorama comes out flat.
+- The 3D view of [S11](S11-vista-3d.md) is disabled.
+- The status says "using a smooth Moon".
+
+When `main` was tried on 15 November, the first thing missed was the relief of Apollo 11.
+
+Without relief, the comparison between sites is unfair: a site surrounded by mountains, such as Apollo 15 or Apollo 17, looks as open as a plain.
+
+## Result
+
+Done on 15 November. All 12 criteria are met.
+
+| Criterion | Result |
+| --- | --- |
+| 1. Apollo 15 | Mons Hadley is seen at 11.0° (azimuth 44°, 19.7 km away) and Hadley Delta at 13.3° (azimuth 178°, 10.9 km away) |
+| 2. Apollo 17 | The North Massif is seen at 13.7° (6.2 km away) and the South Massif at 7.0° (11.6 km away) |
+| 3. Apollo 11 | The highest point of the horizon is at 0.97° |
+| 4. Polar grid against global | The medians are 0.06°, 0.35°, 0.03°, 0.48° and 0.05° at the five points. The 0.48° one is tight: near the site the 474 m north-south cells weigh in |
+| 5. Custom point with the grid | "474 m LOLA" and 3D view at 10°N 10°E |
+| 6. Catalogue without the grid | Apollo 11 and Apollo 15 show "474 m LOLA (precomputed)", and the 3D view loads "Terrain 474 m (precomputed)" |
+| 7. Custom point without the grid | Smooth Moon and 3D button disabled, with its explanation |
+| 8. Cost | A horizon takes 89 ms with the cache empty and 25 ms with it full; a 64 km patch, 11 ms |
+| 9. Polar sites | The 12 sites do not change (0.0000°) and their patches are identical. Measured with the 240 m grid; the files precomputed with the fine grids were not touched |
+| 10. Memory | The cache fills up at 32 MB, and the process grows 44 MB after the 75 catalogue horizons |
+| 11. Repository | 7.4 MB new: 872 KB of horizons and 6.5 MB of patches |
+| 12. Looking up | The camera reaches 85° and Earth can be seen at Apollo 11 |
+
+Checked with:
+
+- Tests without data: [globalDem.test.js](../../tests/globalDem.test.js) (16 tests, on synthetic grids).
+- Tests with the real grid: [globalTerrain.test.js](../../tests/globalTerrain.test.js) (7 tests, which skip themselves if it is missing).
+- Browser test: [s17-relieve-global.mjs](../../e2e/s17-relieve-global.mjs) (11 checks; the one for criterion 5 needs `E2E_GLOBAL=1`).
+
+**Download.** With 16 connections in parallel, the 531 MB came down at between 320 and 400 KB/s, in about 25 minutes. With a single connection it ran at 37 KB/s.
+
+**What you see.** At Apollo 15 and Apollo 17, the mountains close the horizon, in the 3D view too. Apollo 11 is a plain with almost no shadows when the Sun is high, as befits the Sea of Tranquility at midday.
+
+**Not done:** the comparison by hand with the missions' panoramic photos.
+
+## What the user will see
+
+- **Catalogue sites away from the pole.** The panorama draws their real horizon and the status says "LOLA terrain 474 m (precomputed)". It works on any copy of the project, with nothing more to download.
+- **"View in 3D" is enabled at those sites.**
+  - Apollo 15 and Apollo 17 show the mountains around them.
+  - Apollo 11 looks almost flat, as the Sea of Tranquility is.
+  - You can look up nearly to the zenith, because far from the pole the Sun and Earth climb high in the sky.
+- **Custom points.** With the global topography installed (`npm run fetch-data -- --global`, 531 MB), any point on the Moon has relief and a 3D view. Without it, a custom point away from the pole stays with the smooth Moon, and the status says so.
+- **What does not change.** The shadow map is still that of the south pole. The point search ([S04](S04-buscador-de-puntos.md)) and permanent shadow ([S16](S16-sombra-permanente.md)) stay limited to 80°S–90°S. For the rest of the Moon there is the Globe view.
+
+**The limit is stated plainly:** the cells are 474 m. You see the mountains, the craters more than a couple of kilometres across and the general shape of the terrain. You do not see rocks or craters a few hundred metres across, such as West, the one Eagle steered around on landing.
+
+## Design
+
+**Data.** Checked on 15 November 2026 on NASA's PDS, in `lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/`:
+
+| Product | Cell | Coverage | Size | Format |
+| --- | --- | --- | --- | --- |
+| `LDEM_64` (v3.1, 2019) | 1/64° (473.8 m at the equator) | Whole Moon | 531 MB (530 841 600 bytes) | 23 040 × 11 520 little-endian 16-bit integers, in simple cylindrical projection. Row 0 is at 90°N and column 0 at 0°E |
+
+- The height is DN × 0.5 m above the 1737.4 km sphere, the same reference as the polar grids. The two can be mixed with no conversion.
+- The server accepts range requests, so the download resumes like the others.
+- `LDEM_128` (237 m, 2.1 GB) was ruled out: it quadruples the download. The distant horizon, which is what draws the mountains of the panorama, barely changes, and near the site the procedural detail of the 3D view already gives texture.
+
+**Reading without loading the whole file.** New `server/globalDem.js`:
+
+- If `server/data/ldem_64.img` exists, it reads blocks of 256 × 256 cells (4° × 4°, 128 KB) only when they are needed. It caches the last 256 blocks (32 MB), so the server does not reserve 531 MB.
+- `globalHeightAt(latDeg, lonDeg)` gives the height in km, with bilinear interpolation:
+  - It wraps around at longitude 0°/360°.
+  - Next to the poles, it stays on the last row.
+  - It gives NaN if the file is not there.
+- It also exports `globalDemAvailable()`, and the path and size of the grid as parameters, so it can be tested with a small synthetic file.
+
+**A single height function.** New `heightAtUnit(x, y, z)` in [dem.js](../../server/dem.js): it takes a point on the unit sphere and returns its height in km.
+
+- It uses the finest polar grid that contains the point.
+- Outside the polar grids, it uses the global one.
+- If there is none, it returns NaN.
+
+Alongside it, `terrainResolutionAt(lat, lon)` gives the cell that will be used at the site: 20 to 240 m at the pole, 474 m elsewhere, or `null`.
+
+**Horizon** ([horizon.js](../../server/horizon.js)):
+
+- `computeHorizon` stops looking at the latitude. If there is terrain at the site, it casts the rays with `heightAtUnit`; if not, it uses the smooth sphere, as now.
+- The ray is no longer cut on leaving the polar grid at 75°S: if the global one is installed, it carries on over it. At the polar catalogue sites nothing measurable changes, because at that distance the curvature sinks the terrain further than the mountains are tall (criterion 9).
+- The ray starts and advances half a cell, as now: 237 m away from the pole.
+
+**3D patches** ([patch.js](../../server/patch.js)). `heightFn` takes the point on the unit sphere instead of polar map coordinates, and defaults to `heightAtUnit`. The rest of the computation already holds at any latitude.
+
+**Server** ([app.js](../../server/app.js)):
+
+- `/api/patch` stops answering 400 north of 80°S. It answers 503 only if at that point there is neither installed terrain nor a precomputed patch.
+- `/api/horizon` and `/api/patch` look for the precomputed one at any latitude. They use it if its cell is finer than the one installed at that point, or if there is no terrain installed there.
+- `/api/health` adds `globalDem: true | false`. `coverageMaxLat` stays: it is still the limit of the point search and the polar map.
+- `LUMINA_GLOBAL=0` leaves the global grid off even if it is installed, like `LUMINA_HIRES=0` with the fine grids.
+- The point search turns it off in its worker threads. That way its results do not change and each thread saves the block cache.
+
+**Download** ([fetch-data.mjs](../../scripts/fetch-data.mjs)):
+
+- New `--global` option, which downloads `ldem_64.img` and its label to `server/data/`. Git already ignores the `.img` files in that folder.
+- Files of 16 MB or more are downloaded in 1 MB pieces over 16 connections at once, and a `.pieces` file records the finished pieces so it can resume.
+- The reason: on 15 November NASA's server gave 30 to 40 KB/s per connection, and 512 KB/s with 16 connections. With a single one, the 531 MB would take about 4 hours. With 4 MB pieces, the 16 connections ran into the timeout.
+
+**Precomputing the 25 sites** ([precompute-horizons.mjs](../../scripts/precompute-horizons.mjs)):
+
+- Today it requires the fine polar grids and deletes all the files before starting. It becomes two independent parts:
+  - The polar sites, if the fine grids are there.
+  - The others, if the global grid is there.
+- Each part redoes only the files of its sites and reports the part it skips. The `index.json` of the patches is merged instead of rewritten.
+- Each site away from the pole carries 3 horizons and 2 patches. In total that is about 0.9 MB of horizons and 6.6 MB of patches; the polar ones take 0.4 MB and 3.2 MB today.
+- One person alone runs `npm run fetch-data -- --global` and `npm run precompute`, and pushes the files. The rest of the team downloads nothing.
+
+**Interface:**
+
+- [App.tsx](../../src/App.tsx): the 3D view is blocked only when the horizon is not from real terrain (`horizon.model !== 'lola'`), not by latitude. Text: "This point has no topography on the server, and the 3D view needs real terrain."
+- [Panels.tsx](../../src/components/Panels.tsx): "Outside terrain coverage (80°S to 90°S): using a smooth Moon" becomes "No topography for this point: using a smooth Moon". The permanent shadow line does not change.
+- [Export.tsx](../../src/components/Export.tsx): the report's limits say "real terrain with cells of 20 to 240 m at the south pole and of 474 m elsewhere".
+- [terrain3d.ts](../../src/lib/terrain3d.ts): `PITCH_MAX` goes from 60° to 85°. Far from the pole, the Sun passes near the zenith and Earth is fixed and high in the sky (about 66° at Apollo 11). With the 60° limit they could not be seen.
+- The view still opens towards the Sun, but tilted 15° at most (`START_PITCH_MAX`). With the Sun near the zenith, opening while looking at it left the ground off the screen, because the camera sees 30° above and below its tilt. 25° was tried first, but on the plain of Apollo 11 the ground ended up behind the controls bar. At the polar sites nothing changes, because there the Sun does not go above about 7°.
+- [Terrain3D.tsx](../../src/components/Terrain3D.tsx) publishes the camera tilt in `data-pitch`, for the browser test.
+- The shareable link gains no parameters.
+
+**Existing documentation and tests:**
+
+- In [S11](S11-vista-3d.md), the criterion "disabled north of 80°S" becomes "disabled where there is no topography".
+- The browser flows of S06 and S11 check the smooth Moon with a custom point at 10°N, instead of with Apollo 11.
+- `npm run e2e` starts its server with `LUMINA_GLOBAL=0`, to give the same results on any machine. With `E2E_GLOBAL=1` it also starts another server with the global grid, for criterion 5.
+
+## Acceptance criteria
+
+With the global grid installed:
+
+1. Apollo 15 (Hadley-Apennine): the horizon exceeds 5° towards Mons Hadley (north-east) and towards Hadley Delta (south).
+2. Apollo 17 (Taurus-Littrow): it exceeds 5° towards the North Massif and towards the South Massif.
+3. Apollo 11: it does not go above 3° in any direction.
+4. At five points between 77°S and 79°S, where there is a polar and a global grid, the horizons computed with each differ by under 0.5° in the median over the directions.
+5. A custom point at 10°N 10°E has a terrain horizon ("474 m LOLA") and a 3D view.
+
+Without the global grid (clean clone and `npm run fetch-data`):
+
+6. The 25 catalogue sites away from the pole show "474 m LOLA (precomputed)" and open the 3D view.
+7. A custom point at 10°N 10°E stays with the smooth Moon, and the 3D view button is disabled and explains why.
+
+Always:
+
+8. On the development laptop, a global horizon of 720 directions takes under 1.5 s with the cache empty and under 0.5 s with the cache full, and a 64 km patch under 1 s.
+9. The polar sites do not change: their 36 precomputed horizons differ by under 0.01° from the current ones, and their patches are identical.
+10. The global grid adds under 64 MB of memory to the server.
+11. The new precomputed files take under 8 MB.
+12. In the 3D view of Apollo 11 you can look up to 85° of elevation and find Earth.
+
+## Tests
+
+- **Automated, with no downloads:**
+  - `globalDem.js` with a small synthetic file: orientation of rows and columns, scale, wrap at 0°/360° and poles.
+  - The horizon over a flat global grid equals that of the smooth sphere.
+  - A synthetic cone at a known distance gives the expected elevation.
+  - The patch works with the new `heightFn`.
+  - The routes, with precomputed files and without terrain (criteria 6 and 7 on the server).
+  - Precomputing one part does not delete the files of the other.
+- **With the global grid:** criteria 1 to 5 and 8 to 10, in a test file that skips itself if the grid is missing, like [hiresTerrain.test.js](../../tests/hiresTerrain.test.js).
+- **In the browser:** a new flow, `e2e/s17-relieve-global.mjs`, for criteria 6, 7 and 12. [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) is updated as well.
+- **By hand:** compare the panorama of Apollo 15 and Apollo 17 with the missions' panoramic photos, in the Apollo Lunar Surface Journal.
+
+## Out of scope
+
+- **More detail than 474 m:** `LDEM_128` (237 m, 2.1 GB), SLDEM2015 (about 60 m, between 60°N and 60°S) or the LROC NAC models, a few metres per cell, which exist for the Apollo sites. They could be added later with the same `heightAtUnit`.
+- **The shadow map** of other regions or of the north pole.
+- **The point search and permanent shadow** away from the south pole.
+- **Rocks and small craters.**
+
+## Risks
+
+- **The download is slow.** With a single connection, NASA's server gives 37 to 60 KB/s, and 531 MB would take up to 4 hours. That is why `fetch-data` downloads large files over 16 connections, and that way it took about 25 minutes. It is optional, it resumes if it is cut off and only whoever precomputes needs it; the rest of the team uses the files in the repository.
+- **Up close, 474 m disappoints.** The nearby ground looks smooth, and Apollo 11 will look almost flat. The indicator states the resolution ("Terrain 474 m") and the procedural detail of S11 gives texture. The sites that shine are those surrounded by mountains, such as Apollo 15 and Apollo 17.
+- **The repository grows by about 7.5 MB** with the precomputed files. If that is a nuisance, the patches can be stored compressed with `zlib`, which comes with Node and is not a new dependency.
+- **Two grids are mixed.** Both are from LOLA and use the same sphere, but they have different dates and cells: at the edge there can be a step of a few metres. Criterion 4 checks that the horizon does not change.
+- **Near the poles, the cylindrical grid narrows its cells from east to west:** at 85° of latitude they are 41 m wide and still 474 m from north to south. It has no effect: in the south the polar grid rules, and in the north there are no catalogue sites.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S17: Relieve en toda la Luna
 
