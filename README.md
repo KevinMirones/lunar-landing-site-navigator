@@ -100,7 +100,7 @@ El servidor muestra al arrancar la dirección que hay que compartir, del tipo `h
 
 ## Documentación
 
-El [índice de documentación](docs/README.md) reúne el plan de la semana, las specs de cada función pendiente con su estado, y el historial de decisiones y hallazgos del proyecto.
+El [índice de documentación](docs/README.md) reúne el plan de implementación, las specs de cada función con su estado, y el historial de decisiones y hallazgos del proyecto.
 
 ## Estructura
 
