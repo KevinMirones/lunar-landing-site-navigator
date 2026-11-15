@@ -131,7 +131,7 @@ Fase 2:
 ## Pruebas
 
 - **Automáticas**, en [patch.test.js](../../tests/patch.test.js) (12 pruebas) y [terrain3d.test.ts](../../tests/terrain3d.test.ts) (13 pruebas): el criterio 1, la orientación del parche, la elección entre parche precalculado e instalado, los errores 400, la conversión de azimut y elevación a dirección, el anillo de cumbres frente al perfil y la exageración (criterio 6). En la fase 2, el nuevo valor de `v` en [urlState.test.ts](../../tests/urlState.test.ts).
-- **En el navegador**, en [e2e-s11.mjs](../../e2e/e2e-s11.mjs) ([S15](S15-pruebas-de-navegador.md)): abrir la vista, que dibuje algo, el indicador, girar con las flechas, el mástil, la reproducción, cerrar con `Esc`, que el instante y el mástil se conserven, y el botón desactivado al norte de 80°S. Sin errores en la consola.
+- **En el navegador**, en [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) ([S15](S15-pruebas-de-navegador.md)): abrir la vista, que dibuje algo, el indicador, girar con las flechas, el mástil, la reproducción, cerrar con `Esc`, que el instante y el mástil se conserven, y el botón desactivado al norte de 80°S. Sin errores en la consola.
 - **A mano**: los criterios 2 a 4 y 9 a 11. No hay pruebas automáticas del dibujo. Los criterios 2 y 3 se midieron con un guion que recorre el parche de 64 km en tres direcciones y lo compara con `computeHorizon`.
 
 ## Fuera de alcance
