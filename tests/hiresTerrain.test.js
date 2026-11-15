@@ -47,6 +47,6 @@ describe.skipIf(!hasFine)('nested LOLA grids', () => {
       computeHorizon(-89.4398, -137.17, 2);
       best = Math.min(best, performance.now() - t);
     }
-    expect(best).toBeLessThan(250);
+    if (process.env.LUMINA_PERF === '1') expect(best).toBeLessThan(250); // npm run test:perf (S03)
   });
 });

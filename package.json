@@ -17,6 +17,7 @@
     "share": "npm run build && node server/index.js",
     "start": "node server/index.js",
     "test": "vitest run",
+    "test:perf": "node scripts/test-perf.mjs",
     "typecheck": "tsc --noEmit",
     "docs:index": "node scripts/build-docs-index.mjs",
     "docs:check": "node scripts/build-docs-index.mjs --check"

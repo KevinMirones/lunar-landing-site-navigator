@@ -67,7 +67,7 @@ npm run build
 npm start            # sirve API y web en http://localhost:8787
 ```
 
-Pruebas: `npm test`. Validación científica: `npm run validate` (ver [docs/VALIDACION.md](docs/VALIDACION.md)).
+Pruebas: `npm test`. Los límites de tiempo de cálculo se comprueban aparte, en el portátil de desarrollo, con `npm run test:perf`. Validación científica: `npm run validate` (ver [docs/VALIDACION.md](docs/VALIDACION.md)).
 
 ### Despliegue público
 

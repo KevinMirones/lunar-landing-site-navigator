@@ -138,6 +138,7 @@ describe('analysing scenarios', () => {
       return performance.now() - t;
     };
     run(); // warm up the JIT
-    expect(Math.min(run(), run(), run())).toBeLessThan(300);
+    const best = Math.min(run(), run(), run());
+    if (process.env.LUMINA_PERF === '1') expect(best).toBeLessThan(300); // npm run test:perf (S03)
   });
 });
