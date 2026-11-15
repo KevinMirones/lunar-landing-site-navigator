@@ -1,7 +1,7 @@
 ---
 id: S14
 titulo: Robustez y calidad
-estado: en curso
+estado: hecha
 dia: 6
 prioridad: imprescindible
 depende: S01, S02, S03, S15

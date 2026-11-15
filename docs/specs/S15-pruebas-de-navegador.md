@@ -1,7 +1,7 @@
 ---
 id: S15
 titulo: Pruebas de navegador en el repositorio
-estado: en curso
+estado: hecha
 dia: 4
 prioridad: imprescindible
 depende: S03

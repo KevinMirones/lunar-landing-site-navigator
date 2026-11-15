@@ -1,7 +1,7 @@
 ---
 id: S12
 titulo: Modo educativo
-estado: en curso
+estado: hecha
 dia: 5
 prioridad: imprescindible
 depende: S01

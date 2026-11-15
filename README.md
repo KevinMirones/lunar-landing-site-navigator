@@ -14,15 +14,15 @@ Proyecto para el reto de NASA Space Apps sobre planificación de misiones al pol
 | Comparar sitios | Tabla de escenarios lado a lado, con las ventanas alineadas por día de misión, y enlace para compartirla |
 | Por qué un cambio pequeño importa | Buscador que evalúa la zona alrededor de un punto y propone los cinco mejores lugares cercanos |
 | Comparar fechas | Escenarios con el mismo sitio en fechas distintas, calendario de 12 meses y las cinco mejores fechas de alunizaje |
-| Sitios notables y coordenadas propias | 18 sitios (Artemis, CLPS, Apollo, ISRO, JAXA, CNSA), cada uno con la fuente de sus coordenadas, más coordenadas manuales o clic en el mapa |
-| Mapas 2D y 3D | Mapa polar con sombras calculadas en vivo en la GPU y globo 3D iluminado por el Sol real |
+| Sitios notables y coordenadas propias | 37 sitios (Artemis, CLPS, Apollo, Luna, Surveyor, ISRO, JAXA, CNSA), cada uno con la fuente de sus coordenadas, más coordenadas manuales o clic en el mapa |
+| Mapas 2D y 3D | Mapa polar con sombras calculadas en vivo en la GPU, globo 3D iluminado por el Sol real y vista 3D en primera persona desde el sitio, con el relieve real |
 | Dinámica temporal | Reproducción animada de toda la misión |
 | Público general | Explicaciones en lenguaje llano generadas a partir de los datos, en español e inglés |
 
 ## Cómo funciona
 
 1. **Efemérides.** El navegador calcula la posición del Sol y la Tierra y la orientación de la Luna (modelo de rotación IAU, que incluye la libración) con `astronomy-engine`, y las expresa en el sistema fijo a la Luna. Cuesta unos 14 µs por instante.
-2. **Terreno.** El servidor Node carga los modelos de elevación LOLA del polo sur: cuatro mallas anidadas de 20 m (87.5°S a 90°S), 40 m (desde 85°S), 80 m (desde 80°S) y 240 m (desde 75°S), y lee siempre la más fina que contiene cada punto. Para cada sitio lanza 720 rayos, uno cada 0.5° de azimut, hasta 400 km, teniendo en cuenta la curvatura lunar, y devuelve el ángulo del horizonte en cada dirección. Tarda unos 55 ms con terreno de 20 m. Sin las mallas finas funciona con la de 240 m, y los sitios del catálogo usan horizontes precalculados con terreno fino.
+2. **Terreno.** El servidor Node carga los modelos de elevación LOLA del polo sur: cuatro mallas anidadas de 20 m (87.5°S a 90°S), 40 m (desde 85°S), 80 m (desde 80°S) y 240 m (desde 75°S), y lee siempre la más fina que contiene cada punto. Para cada sitio lanza 720 rayos, uno cada 0.5° de azimut, hasta 400 km, teniendo en cuenta la curvatura lunar, y devuelve el ángulo del horizonte en cada dirección. Tarda unos 55 ms con terreno de 20 m. Sin las mallas finas funciona con la de 240 m, y los sitios del catálogo usan horizontes precalculados con terreno fino. Fuera del polo usa la malla global de LOLA, de 474 m. Es opcional: los 25 sitios del catálogo fuera del polo llevan su horizonte y su relieve 3D precalculados.
 3. **Visibilidad.** En la Luna no hay atmósfera, así que no hay refracción ni crepúsculo: se compara cada disco (Sol 0.53°, Tierra 1.9°) con la línea del terreno y se obtiene la fracción visible.
 4. **Mapa de sombras.** Un shader WebGL2 hace el mismo cálculo para cada píxel del mapa polar, 150 pasos por rayo, en tiempo real.
 
@@ -34,7 +34,8 @@ Proyecto para el reto de NASA Space Apps sobre planificación de misiones al pol
 
 ## Límites conocidos
 
-- El terreno real cubre de 80°S a 90°S. En el resto de la Luna se usa una esfera lisa (se indica en pantalla).
+- El terreno tiene celdas de 20 a 240 m en el polo sur y de 474 m en el resto de la Luna. Los sitios del catálogo siempre tienen relieve. Un punto propio fuera del polo lo tiene solo si el servidor tiene la malla global; si no, se usa una esfera lisa, y se indica en pantalla.
+- El mapa de sombras, el buscador de puntos y la sombra permanente cubren de 80°S a 90°S.
 - Con celdas de 20 a 80 m no se resuelven rocas ni relieve de pocos metros. Cerca de una cresta, moverse 40 m puede cambiar el resultado en decenas de puntos.
 - El mapa de sombras usa siempre celdas de 480 m. En un servidor sin mallas finas, el buscador de puntos y los puntos personalizados usan terreno de 240 m.
 - "Enlace" significa que al menos medio disco terrestre supera el terreno. No se modelan estaciones de tierra ni antenas.
@@ -60,6 +61,15 @@ npm run precompute              # recalcula los horizontes del catálogo en serv
 
 Con las mallas finas el servidor usa unos 400 MB de memoria. `LUMINA_HIRES=0` las deja sin cargar.
 
+Relieve en toda la Luna, opcional ([S17](docs/specs/S17-relieve-global.md)):
+
+```bash
+npm run fetch-data -- --global  # malla global de 474 m (531 MB, unos 25 minutos)
+npm run precompute              # recalcula también los sitios del catálogo fuera del polo
+```
+
+El servidor no carga la malla global entera: lee bloques de ella y guarda en memoria 32 MB como máximo. `LUMINA_GLOBAL=0` la deja sin usar.
+
 Producción:
 
 ```bash
@@ -75,17 +85,47 @@ Un único servicio Node sirve la API y la web. Vale cualquier alojamiento que ej
 
 | Ajuste | Valor |
 | --- | --- |
-| Compilación | `npm ci && npm run fetch-data && npm run build` |
-| Arranque | `npm start` |
-| Puerto | variable `PORT` |
-| Comprobación de salud | `/api/health` debe responder `"dem": true` |
-| Memoria | 256 MB bastan con la malla de 240 m; los sitios del catálogo responden igualmente con terreno fino, precalculado |
+| Node | 22.18 o superior; mejor 24 |
+| Compilación | `npm ci && npm run build:deploy`: descarga los datos de NASA y compila |
+| Arranque | `npm start`, o `server/index.js` como archivo de entrada |
+| Puerto | variable `PORT` (8787 si no está) |
+| Comprobación de salud | `/api/health` debe responder `"dem": true` y `"precomputed": 111`; `"globalDem": true` cuando la malla global esté completa |
+| Memoria | 256 MB bastan: la malla de 240 m ocupa 29 MB y de la global se guardan 32 MB como máximo |
+| Disco | Unos 600 MB con la malla global |
 | Detrás de un proxy | `TRUST_PROXY=1`, para que el límite de peticiones vea la dirección real del cliente |
 | Servidor pequeño | `SEARCH_WORKERS=1` y `SEARCH_MAX_GRID=21` reducen el coste del buscador de puntos |
 
+`build:deploy` descarga en paralelo y se detiene a los 11 minutos aunque la malla global no haya terminado. Así cabe en alojamientos que limitan la compilación a 15 minutos. Lo descargado se conserva, y el siguiente despliegue continúa desde ahí. Mientras tanto, la app funciona: los sitios del catálogo tienen su relieve precalculado.
+
 En público, `/api/jpl` admite 30 consultas por minuto y por dirección, y guarda las respuestas en caché. El servidor envía cabeceras de seguridad, incluida una política de contenido que solo permite recursos propios.
 
-Dirección pública: pendiente de desplegar.
+#### En Hostinger (aplicación Node.js de hPanel)
+
+Sirve con los planes que admiten aplicaciones Node.js (Business y Cloud).
+
+1. En hPanel: **Websites → Add Website → Node.js web app → Import from GitHub**. Autoriza GitHub y elige este repositorio y la rama `main`. Cada push a `main` vuelve a desplegar.
+2. Ajustes de compilación:
+
+   | Campo | Valor |
+   | --- | --- |
+   | Tipo de aplicación | Express u "Other". No Vite: Vite lo trataría como una web estática |
+   | Node.js version | 24 |
+   | Root directory | la raíz del repositorio |
+   | Package manager | npm |
+   | Build script | `build:deploy` |
+   | Entry file | `server/index.js` |
+   | Output directory | vacío. Si es obligatorio, `dist` |
+
+3. Variables de entorno: `TRUST_PROXY=1`, `SEARCH_WORKERS=1` y `SEARCH_MAX_GRID=21`. `PORT` no se define: la pone Hostinger.
+4. Despliega. La primera compilación tarda unos 13 minutos, casi todo en la descarga.
+5. Abre `https://<tu dominio>/api/health`:
+   - `"dem": true` y `"precomputed": 111`: todo en marcha.
+   - `"globalDem": false`: la malla global no terminó en el plazo. Vuelve a desplegar desde **Deployments** para que continúe.
+   - Si sigue en `false` después de tres despliegues, el alojamiento no conserva los archivos entre despliegues. La app funciona igual: solo los puntos propios fuera del polo se quedan sin relieve.
+
+La aplicación se detiene cuando no recibe visitas y arranca con la siguiente: la primera carga tarda unos segundos más. Antes de una demostración, abre la dirección unos minutos antes.
+
+Dirección pública: pendiente de crear la aplicación en Hostinger.
 
 ### Compartir en la red local
 

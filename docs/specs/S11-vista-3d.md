@@ -1,7 +1,7 @@
 ---
 id: S11
 titulo: Vista 3D del terreno
-estado: en curso
+estado: hecha
 dia: 5
 prioridad: recortable
 depende: S06

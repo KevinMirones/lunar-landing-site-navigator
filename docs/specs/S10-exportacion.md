@@ -1,7 +1,7 @@
 ---
 id: S10
 titulo: Exportación de ventanas e informe
-estado: en curso
+estado: hecha
 dia: 4
 prioridad: recortable
 depende: S01, S08, S09

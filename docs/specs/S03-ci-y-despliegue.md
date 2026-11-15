@@ -1,7 +1,7 @@
 ---
 id: S03
 titulo: Integración continua y despliegue público
-estado: en curso
+estado: hecha
 dia: 1
 prioridad: imprescindible
 depende: -
@@ -31,14 +31,17 @@ Hecho y probado:
 - Ajustes de despliegue documentados en el [README](../../README.md).
 - Pruebas de tiempo fuera de `npm test`, con `npm run test:perf` ([Pruebas de tiempo](#pruebas-de-tiempo)). Comprobado en el segundo portátil: `npm test` pasa (118 pruebas, 5 omitidas sin mallas finas) y `npm run test:perf` falla allí por 633 ms frente a 300 ms, como se espera en un equipo más lento.
 
-Falta, en este orden:
+Cerrada el 15 de noviembre, al terminar el proyecto (`v1.0.0`):
 
-1. Comprobar en la pestaña Actions de GitHub que el flujo termina en verde. El repositorio es privado y no se pudo comprobar desde fuera.
-2. Confirmar la decisión sobre el DEM (ver [Datos en el repositorio](#datos-en-el-repositorio)).
-3. Desplegar (ver [Despliegue](#despliegue)) y poner la dirección en el README.
-4. Opcional: la [copia estática de respaldo](#copia-estática-de-respaldo).
+- **Alojamiento: Hostinger**, en lugar de Render. El equipo ya tenía allí un plan con aplicaciones Node.js, y una aplicación conectada a GitHub que se redespliega en cada push a `main`. Los pasos y los ajustes están en el [README](../../README.md#en-hostinger-aplicación-nodejs-de-hpanel).
+- **Datos:** se despliegan todos los que hay, incluida la malla global de [S17](S17-relieve-global.md) (531 MB). Hostinger limita la compilación a 15 minutos, así que `npm run build:deploy` descarga en paralelo y se detiene a los 11 minutos. Lo bajado se conserva para el siguiente despliegue. La malla de 240 m baja en unos 20 segundos.
+- **El DEM no entra en el repositorio:** con la descarga en paralelo ya no hace falta, y la decisión era irreversible.
 
-Los pasos 1 a 3 necesitan las cuentas del equipo.
+Sin hacer:
+
+1. Crear la aplicación en Hostinger y poner la dirección en el README (criterios 4 y 6). Lo hace el equipo con su cuenta.
+2. Comprobar en la pestaña Actions de GitHub que el flujo termina en verde. El repositorio es privado y no se pudo comprobar desde fuera.
+3. La [copia estática de respaldo](#copia-estática-de-respaldo), que era opcional.
 
 ## Diseño
 

@@ -11,25 +11,25 @@
 
 ## Specs
 
-17 specs: 0 pendientes, 6 en curso, 11 hechas, 0 recortadas.
+17 specs: 0 pendientes, 0 en curso, 17 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
 | S01 | [Escenarios comparables](specs/S01-escenarios.md)<br>Comparar lado a lado el mismo sitio en fechas, duraciones o mástiles distintos. | 1 | imprescindible | hecha | — |
 | S02 | [Enlaces compartibles](specs/S02-enlaces-compartibles.md)<br>Copiar un enlace que abre exactamente la misma comparación en otro navegador. | 1 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
-| S03 | [Integración continua y despliegue público](specs/S03-ci-y-despliegue.md)<br>Cada cambio se prueba solo y hay una dirección pública que el jurado puede abrir. | 1 | imprescindible | en curso | — |
+| S03 | [Integración continua y despliegue público](specs/S03-ci-y-despliegue.md)<br>Cada cambio se prueba solo y hay una dirección pública que el jurado puede abrir. | 1 | imprescindible | hecha | — |
 | S04 | [Buscador de puntos cercanos](specs/S04-buscador-de-puntos.md)<br>Mapa de calor alrededor de un punto y los cinco mejores lugares para aterrizar cerca. | 2 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S05 | [Buscador de mejores fechas](specs/S05-mejores-fechas.md)<br>Las cinco mejores fechas de alunizaje del año para un sitio y una duración dados. | 2 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S06 | [Terreno multirresolución](specs/S06-terreno-multirresolucion.md)<br>Horizonte calculado con celdas de 20 a 80 m cerca del sitio, en lugar de 240 m. | 3 | imprescindible | hecha | — |
 | S07 | [Validación científica y coordenadas oficiales](specs/S07-validacion-y-coordenadas.md)<br>Tabla que compara nuestros resultados con los publicados, y cada sitio con su fuente. | 3 | imprescindible | hecha | [S06](specs/S06-terreno-multirresolucion.md) |
 | S08 | [Modelo de energía y batería](specs/S08-energia-y-bateria.md)<br>Potencia, energía diaria y batería necesaria para sobrevivir la noche más larga. | 4 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S09 | [Ventanas de contacto reales](specs/S09-ventanas-de-contacto.md)<br>Enlace con margen de elevación y con las estaciones de tierra que ven la Luna en cada momento. | 4 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
-| S10 | [Exportación de ventanas e informe](specs/S10-exportacion.md)<br>Descargar las ventanas en CSV e imprimir un informe de una página con la comparación. | 4 | recortable | en curso | [S01](specs/S01-escenarios.md), [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md) |
-| S11 | [Vista 3D del terreno](specs/S11-vista-3d.md)<br>Ponerse en el sitio, a la altura del mástil, y mirar alrededor mientras el Sol y la Tierra se mueven sobre el relieve real. | 5 | recortable | en curso | [S06](specs/S06-terreno-multirresolucion.md) |
-| S12 | [Modo educativo](specs/S12-modo-educativo.md)<br>Un recorrido guiado de cinco pasos, un glosario y una vista sencilla para quien no es especialista. | 5 | imprescindible | en curso | [S01](specs/S01-escenarios.md) |
+| S10 | [Exportación de ventanas e informe](specs/S10-exportacion.md)<br>Descargar las ventanas en CSV e imprimir un informe de una página con la comparación. | 4 | recortable | hecha | [S01](specs/S01-escenarios.md), [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md) |
+| S11 | [Vista 3D del terreno](specs/S11-vista-3d.md)<br>Ponerse en el sitio, a la altura del mástil, y mirar alrededor mientras el Sol y la Tierra se mueven sobre el relieve real. | 5 | recortable | hecha | [S06](specs/S06-terreno-multirresolucion.md) |
+| S12 | [Modo educativo](specs/S12-modo-educativo.md)<br>Un recorrido guiado de cinco pasos, un glosario y una vista sencilla para quien no es especialista. | 5 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S13 | [Catálogo ampliado y polo norte](specs/S13-catalogo-y-polo-norte.md)<br>Más sitios históricos y futuros, con buscador, y terreno real también en el polo norte. | 5 | recortable | hecha | [S07](specs/S07-validacion-y-coordenadas.md) |
-| S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | en curso | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
-| S15 | [Pruebas de navegador en el repositorio](specs/S15-pruebas-de-navegador.md)<br>Una orden que abre la app en un navegador real y comprueba cada función, también en cada pull request. | 4 | imprescindible | en curso | [S03](specs/S03-ci-y-despliegue.md) |
+| S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | hecha | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
+| S15 | [Pruebas de navegador en el repositorio](specs/S15-pruebas-de-navegador.md)<br>Una orden que abre la app en un navegador real y comprueba cada función, también en cada pull request. | 4 | imprescindible | hecha | [S03](specs/S03-ci-y-despliegue.md) |
 | S16 | [Distancia a la sombra permanente](specs/S16-sombra-permanente.md)<br>Cada sitio dice a qué distancia tiene la zona en sombra permanente más cercana, donde puede conservarse hielo. | 5 | recortable | hecha | [S04](specs/S04-buscador-de-puntos.md), [S07](specs/S07-validacion-y-coordenadas.md) |
 | S17 | [Relieve en toda la Luna](specs/S17-relieve-global.md)<br>Los sitios fuera del polo sur, como los del programa Apollo, tienen horizonte con relieve real y vista 3D, igual que los del polo. | 7 | recortable | hecha | [S06](specs/S06-terreno-multirresolucion.md), [S11](specs/S11-vista-3d.md), [S13](specs/S13-catalogo-y-polo-norte.md) |
 
@@ -39,6 +39,7 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-15 | [Proyecto terminado (v1.0.0)](historial/2026-11-15-17-proyecto-terminado.md)<br>Las 17 specs están hechas y LUMINA se cierra con la etiqueta v1.0.0. Se despliega en Hostinger con todos los datos. Queda anotado qué no se pudo comprobar a mano. | hito |
 | 2026-11-15 | [Relieve real en toda la Luna](historial/2026-11-15-16-relieve-global.md)<br>Los 25 sitios del catálogo fuera del polo sur, como los Apollo, tienen horizonte con relieve real y vista 3D. La topografía global se precalcula una vez y va en el repositorio, así que el resto del equipo no descarga nada. | hito |
 | 2026-11-15 | [El mapa polar se queda en sus datos y la lista saca sitios de la comparación](historial/2026-11-15-15-mapa-y-comparar.md)<br>Al probar la versión integrada se vio que los botones de zoom del mapa no hacían nada, que el mapa se podía arrastrar fuera de sus datos y que no había forma clara de sacar un sitio de la comparación. Corregido. | incidencia |
 | 2026-11-15 | [Specs S08 a S16 implementadas, salvo S11](historial/2026-11-15-14-specs-s08-a-s16.md)<br>Energía, contacto, exportación, modo educativo, catálogo, sombra permanente, robustez y pruebas de navegador, en ramas apiladas. | hito |

@@ -2,8 +2,10 @@
 
 Qué está hecho, qué falta y en qué orden se hace. El detalle de cada función está en su spec; el estado de todas se ve en el [índice](README.md).
 
+> **Proyecto terminado el 15 de noviembre de 2026, etiqueta `v1.0.0`.** Las 17 specs están hechas. Lo que quedó sin comprobar a mano, y el despliegue en Hostinger, están en [la entrada de cierre](historial/2026-11-15-17-proyecto-terminado.md).
+
 - **Punto de partida:** etiqueta `mvp-v0.1.0` (14 de noviembre de 2026). Ver el [historial](README.md#historial-del-proyecto).
-- **Actualizado:** 14 de noviembre de 2026, con S01 a S07 implementadas y el resto especificado.
+- **Actualizado:** 15 de noviembre de 2026, al cerrar el proyecto.
 - **Fechas:** anota aquí la hora límite de entrega en cuanto la confirmes. El plan cuenta en días de trabajo, no en fechas del calendario.
 
 ## Dónde estamos
@@ -15,8 +17,8 @@ Qué está hecho, qué falta y en qué orden se hace. El detalle de cada funció
 | Día 3: rigor científico | [S06](specs/S06-terreno-multirresolucion.md), [S07](specs/S07-validacion-y-coordenadas.md) | Hechas |
 | Fuera del plan | [Paneles plegables, mapa ampliado y logo](historial/2026-11-14-11-paneles-plegables.md) | Hecho y mezclado en `main` (pull request #6) |
 | Días 4 a 6 | [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md), [S10](specs/S10-exportacion.md), [S12](specs/S12-modo-educativo.md), [S13](specs/S13-catalogo-y-polo-norte.md), [S14](specs/S14-robustez-y-calidad.md), [S15](specs/S15-pruebas-de-navegador.md), [S16](specs/S16-sombra-permanente.md) | [Implementadas el 15 de noviembre](historial/2026-11-15-14-specs-s08-a-s16.md), cada una en su rama. Quedan pruebas a mano (ver cada spec) |
-| En paralelo | [S11](specs/S11-vista-3d.md) | De Andrés, ya en `main`; falta integrarla con el resto |
-| Fuera del plan | [S17](specs/S17-relieve-global.md) y [arreglos del mapa](historial/2026-11-15-15-mapa-y-comparar.md) | [Hechos el 15 de noviembre](historial/2026-11-15-16-relieve-global.md), en un solo pull request |
+| En paralelo | [S11](specs/S11-vista-3d.md) | De Andrés, integrada en `main` con el resto (pull request #9) |
+| Fuera del plan | [S17](specs/S17-relieve-global.md) y [arreglos del mapa](historial/2026-11-15-15-mapa-y-comparar.md) | [Hechos el 15 de noviembre](historial/2026-11-15-16-relieve-global.md) y mezclados en `main` |
 
 Los tres primeros días del plan se hicieron en uno. Como referencia de ritmo: S01 a S05 se implementaron en una sesión de unos 40 minutos y S06 y S07 en otra de 30, sin contar la revisión de una persona.
 

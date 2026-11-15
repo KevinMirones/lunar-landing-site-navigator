@@ -18,10 +18,10 @@ Al probar `main` integrado, Apollo 11 salía con el horizonte plano y sin vista 
 
 ## Lo que se aprendió
 
-- **El servidor de NASA reparte el ancho de banda por conexión.** Con una sola conexión iba a 37 KB/s y la descarga habría tardado 4 horas. Con 16 conexiones y trozos de 1 MB llegó a 400 KB/s. `fetch-data` baja así todos los archivos de 64 MB o más, y apunta los trozos terminados para poder reanudar. Con trozos de 4 MB, las 16 conexiones agotaban a la vez el tiempo de espera.
+- **El servidor de NASA reparte el ancho de banda por conexión.** Con una sola conexión iba a 37 KB/s y la descarga habría tardado 4 horas. Con 16 conexiones y trozos de 1 MB llegó a 400 KB/s. `fetch-data` baja así todos los archivos de 16 MB o más, y apunta los trozos terminados para poder reanudar. Con trozos de 4 MB, las 16 conexiones agotaban a la vez el tiempo de espera.
 - **Lejos del polo, el Sol sube casi al cenit.** La cámara 3D, limitada a 60° hacia arriba, no podía mirarlo, y ahora llega a 85°. Pero abrir la vista mirando al Sol dejaba el suelo fuera de la pantalla, así que abre inclinada como mucho 15°. Con 25°, la llanura de Apollo 11 quedaba detrás de la barra de controles.
 - **Los resultados cuadran con el terreno conocido.** Desde Apollo 15, Hadley Delta se ve a 13° y Mons Hadley a 11°. Desde Apollo 17, el North Massif se ve a 14°. Apollo 11 no pasa de 1°.
 
 ## Mezclado con los arreglos del mapa
 
-El mismo pull request lleva los [arreglos del mapa polar y de la comparación](2026-11-15-15-mapa-y-comparar.md), por decisión del equipo.
+La misma rama lleva los [arreglos del mapa polar y de la comparación](2026-11-15-15-mapa-y-comparar.md), por decisión del equipo, y se mezcló directamente en `main` al cerrar el proyecto.

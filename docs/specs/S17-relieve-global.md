@@ -113,7 +113,7 @@ Junto a ella, `terrainResolutionAt(lat, lon)` da la celda que se usará en el si
 **Descarga** ([fetch-data.mjs](../../scripts/fetch-data.mjs)):
 
 - Nueva opción `--global`, que baja `ldem_64.img` y su etiqueta a `server/data/`. Los `.img` de esa carpeta ya los ignora git.
-- Los archivos de 64 MB o más se bajan en trozos de 1 MB por 16 conexiones a la vez, y un archivo `.pieces` apunta los trozos terminados para poder reanudar.
+- Los archivos de 16 MB o más se bajan en trozos de 1 MB por 16 conexiones a la vez, y un archivo `.pieces` apunta los trozos terminados para poder reanudar.
 - El motivo: el 15 de noviembre el servidor de NASA daba de 30 a 40 KB/s por conexión, y 512 KB/s con 16 conexiones. Con una sola, los 531 MB tardarían unas 4 horas. Con trozos de 4 MB, las 16 conexiones agotaban el tiempo de espera.
 
 **Precálculo de los 25 sitios** ([precompute-horizons.mjs](../../scripts/precompute-horizons.mjs)):

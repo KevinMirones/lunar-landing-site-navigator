@@ -50,7 +50,7 @@ describe.skipIf(!hasGlobal)('whole-Moon terrain (LDEM_64)', () => {
       const diffs = both.elevationDeg.map((e, i) => Math.abs(e - whole.elevationDeg[i])).sort((x, y) => x - y);
       expect(diffs[diffs.length >> 1]).toBeLessThan(0.5);
     }
-  });
+  }, 60000);
 
   it('gives a point of your own terrain anywhere (criterion 5)', () => {
     const h = computeHorizon(10, 10, 2);
@@ -73,10 +73,10 @@ describe.skipIf(!hasGlobal)('whole-Moon terrain (LDEM_64)', () => {
     } finally {
       closeGlobalDem();
     }
-  });
+  }, 60000);
 
   it('keeps under 64 MB of the grid in memory after every catalogue site outside the pole (criterion 10)', () => {
     for (const s of CATALOG.filter((x) => x.lat > -80)) computeHorizon(s.lat, s.lon, 2);
     expect(globalCacheStats().bytes).toBeLessThan(64 * 1024 * 1024);
-  });
+  }, 60000); // these measure results and memory, not speed: a busy machine must not fail them
 });

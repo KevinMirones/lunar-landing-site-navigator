@@ -7,8 +7,9 @@
 //  - LROC colour mosaic of the Moon (NASA SVS CGI Moon Kit) for the 3D globe
 //
 // The PDS server can be slow, so downloads go to a ".part" file, resume where
-// they stopped, and are only accepted once the size matches. Files of 64 MB or
-// more come down in pieces over several connections.
+// they stopped, and are only accepted once the size matches. Files of 16 MB or
+// more come down in pieces over several connections, and --deadline=<minutes>
+// stops them in time for hosts that limit how long a build may take.
 import { closeSync, createWriteStream, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Readable, Transform } from 'node:stream';
@@ -70,12 +71,20 @@ function progress(start, total) {
   });
 }
 
-// Large files come down in 1 MB pieces over 16 connections. Measured on 15 November 2026,
-// the PDS server gave each connection 30 to 40 KB/s, and 16 connections 512 KB/s in total:
+// Files of 16 MB or more come down in 1 MB pieces over 16 connections. Measured on 15 November
+// 2026, the PDS server gave each connection 30 to 40 KB/s, and 16 connections 512 KB/s in total:
 // one connection would take four hours over the 531 MB of S17, sixteen take a quarter of one.
 const PIECE = MB;
 const CONNECTIONS = 16;
+const PIECES_FROM = 16 * MB;
 
+// --deadline=<minutes>: stop fetching pieces after that long and exit without an error, keeping
+// what came down for the next run. Hosts with a time limit on the build (Hostinger: 15 minutes)
+// get there over several deploys, and the app works meanwhile without the missing grid.
+const deadlineArg = process.argv.find((a) => a.startsWith('--deadline='));
+const DEADLINE = deadlineArg ? Date.now() + Number(deadlineArg.split('=')[1]) * 60e3 : Infinity;
+
+/** Returns false when the deadline stopped it before every piece was here. */
 async function downloadPieces({ url, rel, bytes }, part) {
   // Pieces already written are listed in `<part>.pieces`. A part file left by a one-connection
   // run has no list: the pieces inside its length are complete.
@@ -101,6 +110,7 @@ async function downloadPieces({ url, rel, bytes }, part) {
           writeSync(fd, buf, 0, buf.length, from);
           return;
         } catch (err) {
+          if (Date.now() > DEADLINE) return false; // past the deadline: leave it for the next run
           if (attempt >= ATTEMPTS) throw err;
           await new Promise((r) => setTimeout(r, 2000 * attempt));
         }
@@ -108,9 +118,9 @@ async function downloadPieces({ url, rel, bytes }, part) {
     };
     let next = 0;
     const worker = async () => {
-      while (next < todo.length) {
+      while (next < todo.length && Date.now() < DEADLINE) {
         const i = todo[next++];
-        await fetchPiece(i);
+        if ((await fetchPiece(i)) === false) return;
         done.add(i);
         writeFileSync(list, JSON.stringify([...done]));
         got += PIECE;
@@ -121,7 +131,12 @@ async function downloadPieces({ url, rel, bytes }, part) {
   } finally {
     closeSync(fd);
   }
+  if (done.size < count) {
+    console.log(`  deadline reached with ${done.size} of ${count} pieces: the next run resumes from here`);
+    return false;
+  }
   rmSync(list);
+  return true;
 }
 
 async function download({ url, rel, bytes }) {
@@ -136,8 +151,8 @@ async function download({ url, rel, bytes }) {
   }
 
   console.log('fetching ', rel);
-  if (bytes >= 64 * MB) {
-    await downloadPieces({ url, rel, bytes }, part);
+  if (bytes >= PIECES_FROM) {
+    if (!(await downloadPieces({ url, rel, bytes }, part))) return console.log('paused   ', rel);
     if (sizeOf(part) !== bytes) throw new Error(`got ${sizeOf(part)} of ${bytes} bytes. Run "npm run fetch-data" again to resume.`);
     renameSync(part, path);
     return console.log('done     ', rel);
