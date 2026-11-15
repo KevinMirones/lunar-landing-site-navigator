@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { moonFixedVectors } from './lib/ephemeris';
 import {
   DURATIONS,
@@ -27,6 +27,9 @@ import { PolarMap } from './components/PolarMap';
 import { SearchControls, SearchResults, whereFrom, type SearchStatus } from './components/Search';
 import { Timeline } from './components/Timeline';
 import { Wordmark } from './components/Wordmark';
+
+// S11: the 3D view loads only when someone opens it.
+const Terrain3D = lazy(() => import('./components/Terrain3D'));
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
@@ -399,6 +402,13 @@ export default function App() {
   const inUse = useMemo(() => scenarios.map((s) => s.siteId), [scenarios]);
   const span = maxSpanMs(scenarios);
   const polarAvailable = heightmap && heightmap !== 'loading';
+  const [terrainOpen, setTerrainOpen] = useState(false);
+  const terrainBlocked =
+    site.lat > -80
+      ? tr('La vista 3D necesita terreno real: solo funciona entre 80°S y 90°S.', 'The 3D view needs real terrain: it only works between 80°S and 90°S.')
+      : horizon?.model !== 'lola'
+        ? tr('La vista 3D necesita la topografía LOLA en el servidor («npm run fetch-data»).', 'The 3D view needs the LOLA topography on the server (“npm run fetch-data”).')
+        : null;
 
   return (
     <LangContext.Provider value={lang}>
@@ -482,7 +492,7 @@ export default function App() {
           </div>
           <Collapse id="hero-body" open={panels.hero}>
             {horizon && sky ? (
-              <Panorama horizon={horizon} sky={sky} series={current?.series ?? null} />
+              <Panorama horizon={horizon} sky={sky} series={current?.series ?? null} expand={{ onExpand: () => setTerrainOpen(true), disabledReason: terrainBlocked }} />
             ) : (
               <div className="panorama loading">{tr('Calculando el horizonte del terreno…', 'Computing the terrain horizon…')}</div>
             )}
@@ -678,6 +688,31 @@ export default function App() {
             )}
           </p>
         </footer>
+        {terrainOpen && (
+          <Suspense fallback={<div className="t3d t3d-msg">{tr('Cargando la vista 3D…', 'Loading the 3D view…')}</div>}>
+            <Terrain3D
+              siteName={site.name}
+              lat={site.lat}
+              lon={site.lon}
+              horizon={horizon}
+              sky={sky}
+              series={current?.series ?? null}
+              now={now}
+              landing={landing}
+              durationMs={durationMs}
+              playing={playing}
+              speed={speed}
+              speeds={SPEEDS}
+              mast={mast}
+              masts={MASTS}
+              onTogglePlay={() => setPlaying((p) => !p)}
+              onSpeed={setSpeed}
+              onScrub={setElapsed}
+              onMast={(m) => editActive({ mast: m })}
+              onClose={() => setTerrainOpen(false)}
+            />
+          </Suspense>
+        )}
       </div>
     </LangContext.Provider>
   );
