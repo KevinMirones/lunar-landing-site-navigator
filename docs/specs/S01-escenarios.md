@@ -52,7 +52,7 @@ La tabla de comparación solo admite sitios distintos con una misma fecha, durac
 ## Fuera de alcance
 
 - Guardar los escenarios entre sesiones: lo cubre [S02](S02-enlaces-compartibles.md).
-- Parámetros de energía por escenario: [S08](S08-energia-y-bateria.md).
+- Parámetros de energía: [S08](S08-energia-y-bateria.md), que usa una sola configuración para todos los escenarios.
 
 ## Riesgos
 

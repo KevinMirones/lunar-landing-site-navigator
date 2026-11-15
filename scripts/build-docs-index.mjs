@@ -18,7 +18,7 @@ const TIPOS = ['hito', 'decisión', 'hallazgo', 'incidencia'];
 // Documents that are not specs or history entries. Missing files are skipped.
 const OTHER = [
   ['../README.md', 'README del proyecto', 'Qué es LUMINA, cómo funciona y cómo arrancarlo.'],
-  ['PLAN.md', 'Plan de la semana', 'Calendario de los siete días, reglas de trabajo, recortes y riesgos.'],
+  ['PLAN.md', 'Plan de implementación', 'Qué está hecho, qué falta y en qué orden; reparto, reglas de trabajo, recortes y riesgos.'],
   ['PITCH.md', 'Guion para el jurado', 'Problema, resultados, demostración de tres minutos y preguntas probables.'],
   ['VALIDACION.md', 'Validación científica', 'Comparación de los resultados de LUMINA con valores publicados.'],
 ];

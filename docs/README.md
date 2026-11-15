@@ -5,13 +5,13 @@
 ## Por dónde empezar
 
 - [README del proyecto](../README.md): Qué es LUMINA, cómo funciona y cómo arrancarlo.
-- [Plan de la semana](PLAN.md): Calendario de los siete días, reglas de trabajo, recortes y riesgos.
+- [Plan de implementación](PLAN.md): Qué está hecho, qué falta y en qué orden; reparto, reglas de trabajo, recortes y riesgos.
 - [Guion para el jurado](PITCH.md): Problema, resultados, demostración de tres minutos y preguntas probables.
 - [Validación científica](VALIDACION.md): Comparación de los resultados de LUMINA con valores publicados.
 
 ## Specs
 
-14 specs: 7 pendientes, 1 en curso, 6 hechas, 0 recortadas.
+16 specs: 9 pendientes, 1 en curso, 6 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
@@ -28,7 +28,9 @@
 | S11 | [Vista 3D del terreno](specs/S11-vista-3d.md)<br>Ver el paisaje real alrededor del sitio, con sus sombras y el Sol y la Tierra en el cielo. | 5 | recortable | pendiente | [S06](specs/S06-terreno-multirresolucion.md) |
 | S12 | [Modo educativo](specs/S12-modo-educativo.md)<br>Un recorrido guiado de cinco pasos, un glosario y una vista sencilla para quien no es especialista. | 5 | imprescindible | pendiente | [S01](specs/S01-escenarios.md) |
 | S13 | [Catálogo ampliado y polo norte](specs/S13-catalogo-y-polo-norte.md)<br>Más sitios históricos y futuros, con buscador, y terreno real también en el polo norte. | 5 | recortable | pendiente | [S07](specs/S07-validacion-y-coordenadas.md) |
-| S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | pendiente | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md) |
+| S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | pendiente | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
+| S15 | [Pruebas de navegador en el repositorio](specs/S15-pruebas-de-navegador.md)<br>Una orden que abre la app en un navegador real y comprueba cada función, también en cada pull request. | 4 | imprescindible | pendiente | [S03](specs/S03-ci-y-despliegue.md) |
+| S16 | [Distancia a la sombra permanente](specs/S16-sombra-permanente.md)<br>Cada sitio dice a qué distancia tiene la zona en sombra permanente más cercana, donde puede conservarse hielo. | 5 | recortable | pendiente | [S04](specs/S04-buscador-de-puntos.md), [S07](specs/S07-validacion-y-coordenadas.md) |
 
 ## Historial del proyecto
 
@@ -36,6 +38,8 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-14 | [Todas las specs pendientes, listas para implementar](historial/2026-11-14-12-specs-completas-y-plan.md)<br>S03 y S08 a S14 revisadas contra el código real, dos specs nuevas (S15 y S16) y un plan con orden, reparto y reglas. | decisión |
+| 2026-11-14 | [Paneles plegables, mapa ampliado y logo nuevo](historial/2026-11-14-11-paneles-plegables.md)<br>Cada sección se pliega y recuerda su estado; un botón deja el mapa a todo el ancho. Mezclado con S01 a S07 y ya en main. | hito |
 | 2026-11-14 | [Specs S06 y S07 implementadas](historial/2026-11-14-10-specs-s06-y-s07.md)<br>Terreno de 20 a 80 m, horizontes precalculados y validación contra los mapas de NASA y Gläser et al. | hito |
 | 2026-11-14 | [Dos decimales de latitud bastaban a 240 m; a 20 m, no](historial/2026-11-14-09-trescientos-metros.md)<br>Con terreno fino, el punto de Shackleton del catálogo pasó de 100% a 12% de luz; sus coordenadas tenían 300 m de margen. | hallazgo |
 | 2026-11-14 | [Specs S01 a S05 implementadas](historial/2026-11-14-08-specs-s01-a-s05.md)<br>Escenarios, enlaces compartibles, buscador de puntos y de fechas, y el servidor listo para publicarse. | hito |
