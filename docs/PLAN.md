@@ -1,3 +1,202 @@
+<a id="en"></a>
+**English** | [Español](#es)
+
+# LUMINA: implementation plan
+
+What is done, what is left and in what order it gets done. The detail of each feature is in its spec; the status of all of them is in the [index](README.md).
+
+> **Project finished on 15 November 2026, tag `v1.0.0`.** All 17 specs are done. What was left without a manual check, and the Hostinger deployment, are in [the closing entry](historial/2026-11-15-17-proyecto-terminado.md).
+
+- **Starting point:** tag `mvp-v0.1.0` (14 November 2026). See the [history](README.md#project-history).
+- **Updated:** 15 November 2026, on closing the project.
+- **Dates:** write the submission deadline here as soon as you confirm it. The plan counts working days, not calendar dates.
+
+## Where we are
+
+| Plan block | Specs | Status |
+| --- | --- | --- |
+| Day 1: compare dates and have a public address | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md) | S01 and S02 done. S03 still to be deployed |
+| Day 2: have the tool make proposals | [S04](specs/S04-buscador-de-puntos.md), [S05](specs/S05-mejores-fechas.md) | Done |
+| Day 3: scientific rigour | [S06](specs/S06-terreno-multirresolucion.md), [S07](specs/S07-validacion-y-coordenadas.md) | Done |
+| Outside the plan | [Collapsible panels, enlarged map and logo](historial/2026-11-14-11-paneles-plegables.md) | Done and merged into `main` (pull request #6) |
+| Days 4 to 6 | [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md), [S10](specs/S10-exportacion.md), [S12](specs/S12-modo-educativo.md), [S13](specs/S13-catalogo-y-polo-norte.md), [S14](specs/S14-robustez-y-calidad.md), [S15](specs/S15-pruebas-de-navegador.md), [S16](specs/S16-sombra-permanente.md) | [Implemented on 15 November](historial/2026-11-15-14-specs-s08-a-s16.md), each on its own branch. Manual checks remain (see each spec) |
+| In parallel | [S11](specs/S11-vista-3d.md) | By Andrés, merged into `main` with the rest (pull request #9) |
+| Outside the plan | [S17](specs/S17-relieve-global.md) and [map fixes](historial/2026-11-15-15-mapa-y-comparar.md) | [Done on 15 November](historial/2026-11-15-16-relieve-global.md) and merged into `main` |
+
+The first three days of the plan were done in one. As a reference for pace: S01 to S05 were implemented in one session of about 40 minutes and S06 and S07 in another of 30, not counting review by a person.
+
+## What is left, in order
+
+| Step | What | What it brings | Priority | Size |
+| --- | --- | --- | --- | --- |
+| 0 | Merge this plan and the specs into `main` (pull request from `samuel`) | The whole team starts from the same specs | — | Small |
+| 1 | [S03](specs/S03-ci-y-despliegue.md), what is left | Tests that pass on any machine, and a public address | essential | Small, plus the team's accounts |
+| 2 | [S15](specs/S15-pruebas-de-navegador.md) | Browser tests in the repository | essential | Medium |
+| 3 | [S08](specs/S08-energia-y-bateria.md) | Watts, battery and "survives the night" | essential | Medium |
+| 4 | [S09](specs/S09-ventanas-de-contacto.md) | Elevation margin and ground stations | essential | Medium |
+| 5 | [S12](specs/S12-modo-educativo.md) | Guided tour, simple view and glossary | essential | Medium |
+| 6 | [S10](specs/S10-exportacion.md) | CSV and printable report | can be cut | Small |
+| 7 | [S13](specs/S13-catalogo-y-polo-norte.md) | More sites, search and north pole | can be cut | Medium; large with the north pole |
+| 8 | [S16](specs/S16-sombra-permanente.md) | Distance to permanent shadow | can be cut | Medium |
+| 9 | [S14](specs/S14-robustez-y-calidad.md) | Stable version 1.0 | essential | Medium |
+| 10 | [Delivery](#delivery) | Video, slides and text | essential | — |
+| 11 | [S17](specs/S17-relieve-global.md) | Relief and 3D view at the sites away from the south pole | can be cut | Medium, plus a 531 MB download for one person only |
+| In parallel | [S11](specs/S11-vista-3d.md) | 3D landscape with shadows | can be cut | Large. Andrés has it from the start |
+
+Essential specs go before those that can be cut. If time runs out at any point from step 5 on, jump straight to S14 and to delivery.
+
+**Dependencies that force the order:**
+
+- S15 goes before the others, so that each new spec adds its browser flow.
+- S10 needs S08 and S09.
+- S11 and the new polar sites of S13 need precomputing with the fine grids (345 MB, `npm run fetch-data -- --hires`). Today only one machine has them.
+- S11 has to be merged into `main` before S14 starts. If it is not, it stays out of version 1.0.
+- S14 goes last: when it starts, the scope is frozen.
+
+## Who does what
+
+Three tracks that touch different files nearly all the time:
+
+| | Track A: engine and engineering | Track B: interface and public | Track C: 3D view |
+| --- | --- | --- | --- |
+| Who | To be decided | To be decided | Andrés |
+| Order | S03 (closing) → S08 → S09 → S10 → S16 | S15 → S12 → S13 | S11 |
+| Own files | `src/lib/series.ts`, `power.ts`, `comms.ts`, `export.ts`, `server/psr.js`, `Timeline.tsx` | `e2e/`, `tour.ts`, `glossary.ts`, `sites.ts`, the site list | `Terrain3D.tsx`, `server/data/patches/`, the precompute script |
+| At the end | S14 and delivery | S14 and delivery | Its browser flow and the merge into `main` |
+
+**S11 belongs to Andrés.** Tracks A and B do not touch it, and do not get ahead on any of it.
+
+Files that several tracks touch and where conflicts will show up: [App.tsx](../src/App.tsx), [styles.css](../src/styles.css), [urlState.ts](../src/lib/urlState.ts), [Panels.tsx](../src/components/Panels.tsx) and, between tracks A and C, [app.js](../server/app.js). The rules below exist to reduce them.
+
+If one person works alone, follow the table above from top to bottom.
+
+## Calendar
+
+| Day | Goal | Specs | What can be shown |
+| --- | --- | --- | --- |
+| 4 | Engineering figures and safety net | S03 (closing), S15, S08, S09, S10 | "Survives the longest night: yes or no", and the public address |
+| 5 | General public and catalogue | S12, S13, S16 | Guided tour, and the 3D landscape as soon as it is merged |
+| 6 | Stable version 1.0 | S14 | The 20 actions without errors on two machines |
+| 7 | Delivery | [Delivery list](#delivery) | Video, slides and text |
+
+S11 moves forward in parallel during days 4 and 5.
+
+## Working rules
+
+**How a spec is implemented:**
+
+1. New branch from an up-to-date `main`: `feat/s08-energia`, `feat/s12-modo-educativo`, …
+2. In the spec's front matter, `estado: en curso`, and `npm run docs:index`.
+3. The logic, test first: watch it fail before writing the code.
+4. The interface, and its flow in `e2e/`.
+5. Full verification: `npm run typecheck`, `npm test`, `npm run build`, `npm run e2e` and `npm run docs:check`. If the spec has time limits, also `npm run test:perf` on the development laptop.
+6. Spec to `estado: hecha`, with the real measurements written into its criteria. An entry in `docs/historial/` if there was a milestone, a finding or a decision. `npm run docs:index`.
+7. Pull request to `main`. Someone else on the team tries it on their machine before merging it.
+
+**Done means:** the spec's acceptance criteria are met, the full verification of step 5 passes and a clean clone starts.
+
+**If a spec is left half done** (time or the work session runs out): add a "Status" section to the spec with what is done and what is left, as in [S03](specs/S03-ci-y-despliegue.md), and push the branch. That way someone else can pick it up.
+
+**So as not to step on each other:**
+
+- **One pull request per spec, and a small one.** Before opening it, merge `main` into the branch and repeat the verification.
+- **`App.tsx` only wires things up.** The state and logic of each spec live in its own module and its own component; only a few lines go into `App.tsx`.
+- **Parameters of the shareable link.** Each spec has its own reserved, so that two branches do not pick the same letter:
+
+  | Parameter | Spec | Content |
+  | --- | --- | --- |
+  | `s`, `a`, `t`, `l`, `v`, `m` | S02 (done) | Scenarios, active one, hours, language, map and layer |
+  | `p` | S08 | Power configuration |
+  | `c` | S09 | Elevation margin and station network |
+  | `x` | S12 | Simple view |
+  | `v=terrain` | S11 | A new value of the map parameter |
+
+  An old link must keep opening, and each new parameter has its tests in [urlState.test.ts](../tests/urlState.test.ts).
+- **New interface blocks.** They go inside a `Collapse` with its key in `PANELS`, as [the panels entry](historial/2026-11-14-11-paneles-plegables.md) explains. Engineering ones are marked `data-level="expert"` for the simple view of S12.
+- **Styles.** Each spec adds its section at the end of `styles.css`, with a header comment that names it, as the S04 one already does.
+- **Texts.** Always in Spanish and English, with `tr(es, en)`.
+- **Dependencies.** Only those the spec names.
+
+**Tags:** `v0.4.0` on closing day 4, `v0.5.0` on closing day 5 and `v1.0.0` on closing S14. If a day goes wrong, go back to the previous tag.
+
+**History:** every milestone, important decision, finding or incident is recorded in `docs/historial/`.
+
+**Figures in the pitch:** every figure said to the jury or in the guided tour must be reproducible in the app, with the date and site noted.
+
+## If we run late
+
+Cut in this order:
+
+1. [S16](specs/S16-sombra-permanente.md): all of it.
+2. [S13](specs/S13-catalogo-y-polo-norte.md): the north pole.
+3. [S13](specs/S13-catalogo-y-polo-norte.md): the extra sites.
+4. [S10](specs/S10-exportacion.md): the printable report; the CSVs stay.
+5. [S09](specs/S09-ventanas-de-contacto.md): the ground stations; the elevation margin stays.
+6. [S12](specs/S12-modo-educativo.md): the glossary; the tour and the simple view stay.
+
+The static copy of [S03](specs/S03-ci-y-despliegue.md) can be cut at any time.
+
+[S11](specs/S11-vista-3d.md) is not on the list because it has its own track: cutting it frees no time for the others. It only stays out if it is not merged when S14 starts.
+
+Not cut: power, elevation margin, guided tour, browser tests, deployment, robustness and delivery materials.
+
+A spec that is left out is marked `estado: recortada`, so that the index reflects it.
+
+## Delivery
+
+- [ ] Make the repository public. Today it is private.
+- [ ] Recompute every figure in [PITCH.md](PITCH.md) and in the guided tour with the final version.
+- [ ] Add what is new to the pitch: power, contact, tour and, if they are in, 3D and permanent shadow.
+- [ ] Video or slides in the format the rules ask for.
+- [ ] Project text: summary, NASA data used, credits and the statement on the use of AI.
+- [ ] The list of 20 actions of [S14](specs/S14-robustez-y-calidad.md), ticked and saved in the history.
+- [ ] Three timed rehearsals and a review of the likely questions.
+- [ ] Plan B without internet: `npm run share` locally, a recorded video and screenshots.
+- [ ] Open the public address a few minutes before each demo.
+- [ ] Submit at least three hours before the deadline.
+
+## Work in parallel
+
+Tasks that are not code:
+
+| When | Task | For |
+| --- | --- | --- |
+| Day 4 | Create the hosting account and deploy | [S03](specs/S03-ci-y-despliegue.md) |
+| Days 4 and 5 | Find the published coordinates of the new sites and note the source | [S13](specs/S13-catalogo-y-polo-norte.md) |
+| Days 4 to 6 | Try each new feature on the other machine and in another browser | all |
+| Day 5 | Do the educational tour without help, with someone new to the subject, and note what is not understood | [S12](specs/S12-modo-educativo.md) |
+| Day 6 | Run the list of 20 actions | [S14](specs/S14-robustez-y-calidad.md) |
+| Days 5 to 7 | Pitch, screenshots, video and slides | delivery |
+
+## General risks
+
+| Risk | Warning sign | Response |
+| --- | --- | --- |
+| A feature breaks what already worked | The tests or `npm run e2e` fail | Fix it before merging; if it is already in `main`, go back to the previous tag |
+| Two branches collide in the same files | Conflicts when merging `main` | Small pull requests and the rules under "So as not to step on each other" |
+| The 3D view is not ready in time | It is not merged when S14 starts | It stays out of 1.0; the panorama and the polar map already cover the brief |
+| A spec is left half done | Time or the session runs out | A "Status" section in the spec and the branch pushed |
+| NASA downloads slow or down | The download does not advance | It can be resumed; the 240 m DEM is in the repository |
+| The free host cannot cope | It sleeps, is slow or runs short of CPU | Precomputed horizons, static copy and plan B locally |
+| No internet at the presentation | — | `npm run share` and a recorded video |
+| A figure in the pitch stops being true | It changes when the terrain or the catalogue is touched | Recompute every figure before delivery |
+
+## Open decisions
+
+The team makes them. The specs already propose an answer for the first three.
+
+- **DEM in the repository.** Proposal of [S03](specs/S03-ci-y-despliegue.md): yes, the 240 m grid (29 MB). It cannot be undone without rewriting the history.
+- **Hosting.** Proposal of [S03](specs/S03-ci-y-despliegue.md): Render, free plan. An account is needed.
+- **Permanent shadow.** [S16](specs/S16-sombra-permanente.md) was not in the original plan. It is done at the end or marked `recortada` right away.
+- **Who takes which track.** Who takes A and who takes B. C already belongs to Andrés.
+- **When the repository is made public.** The static copy and the delivery need it.
+- **Delivery date and format.** Confirm them in the local event's rules. The usual in Space Apps is a 30-second video or seven slides, a public repository and a statement on the use of AI. This project was developed with AI assistance, and that has to be stated.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
+
 # LUMINA: plan de implementación
 
 Qué está hecho, qué falta y en qué orden se hace. El detalle de cada función está en su spec; el estado de todas se ve en el [índice](README.md).

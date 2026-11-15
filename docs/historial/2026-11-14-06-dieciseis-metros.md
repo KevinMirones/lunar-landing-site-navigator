@@ -1,9 +1,48 @@
 ---
 fecha: 2026-11-14
 titulo: Redondear un punto 16 m cambiaba su enlace de 100% a 93%
+title: Rounding a point by 16 m changed its link from 100% to 93%
 tipo: hallazgo
 resumen: Los puntos propios se guardaban con tres decimales; ahora se guardan con cinco.
+summary: Custom points were stored with three decimals; they are now stored with five.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# Rounding a point by 16 m changed its link from 100% to 93%
+
+## What was seen
+
+On trying the [point search](../specs/S04-buscador-de-puntos.md) from the south slope of Malapert, the best point proposed had 100% link to Earth. When it was added as a scenario, the table showed 93%.
+
+## What it was
+
+It was not the search. Three possible causes were checked:
+
+| Possible cause | Measured effect |
+| --- | --- |
+| Horizon with 360 directions instead of 720 | 0.4 points at most over 317 cells |
+| One-hour step instead of half an hour | none at this point |
+| Coordinates rounded to three decimals | from 100% to 92.8% |
+
+Custom points were stored with three decimals of a degree. In latitude that is up to 16 m, and on the Malapert ridge that shift is enough for the nearby relief to block Earth for part of the month.
+
+## What was done
+
+- Custom points and shareable links now keep five decimals (0.3 m).
+- There is an automated test that pins it down and a check in the browser: the scenario created from the search must show exactly the figures the search promised.
+
+## What it teaches
+
+- It is the same phenomenon as the [Malapert finding](2026-11-14-03-hallazgo-malapert.md), at a scale a hundred times smaller.
+- With 240 m cells, a sensitivity of 16 m is partly an effect of the terrain interpolation, not a real property of the site. It reinforces the need for the [fine terrain](../specs/S06-terreno-multirresolucion.md): until then, the figures of a point on a ridge crest must be read as indicative.
+- For the pitch: at the south pole, landing accuracy matters as much as the choice of site.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # Redondear un punto 16 m cambiaba su enlace de 100% a 93%
 

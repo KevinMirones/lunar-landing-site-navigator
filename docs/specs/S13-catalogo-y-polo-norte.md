@@ -1,12 +1,122 @@
 ---
 id: S13
 titulo: Catálogo ampliado y polo norte
+title: Extended catalogue and north pole
 estado: hecha
 dia: 5
 prioridad: recortable
 depende: S07
 resumen: Más sitios históricos y futuros, con buscador, y terreno real también en el polo norte.
+summary: More historic and future sites, with a search, and real terrain at the north pole too.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S13: Extended catalogue and north pole
+
+## Problem
+
+The catalogue has 18 sites: 12 at the south pole with real terrain and 6 over the rest of the Moon. The challenge brief mentions Apollo missions, CLPS targets, commercial missions and other countries' programmes; there are obvious gaps. Also, real terrain only covers the south pole.
+
+## Result
+
+The catalogue and the search have been done since 15 November. The north pole, which the spec marks as optional, is left undone: the [plan](../PLAN.md#if-we-run-late) cuts it before the extra sites.
+
+| Criterion | Result |
+| --- | --- |
+| 1. At least 35 sites with a source | 37: the earlier 18 and 19 historic landings (Apollo 12, 14, 15 and 16; Luna 9, 13, 16, 17, 20, 21 and 24; Surveyor 1, 3, 5, 6 and 7; Chang'e 3, 5 and 6) |
+| 2. Searching "CLPS" or "1972" | Filters the four CLPS sites and the three landings of 1972. Words are combined, and case, accents and apostrophes are ignored |
+| 3. Links with new sites | They work, checked in another tab |
+| 4. Precomputed horizons of the new polar sites | There are no new polar sites. An automated test requires the three horizons for every site south of 80°S, for when there are |
+| 5. North pole | Not done |
+
+Checked with [sites.test.ts](../../tests/sites.test.ts) and in the browser with [s13-catalogo.mjs](../../e2e/s13-catalogo.mjs) (11 checks).
+
+**Source of the new sites.** The coordinates come from Wikipedia's "List of artificial objects on the Moon" article, which cites the source for each mission, and each site says so. It is a weaker source than those of [S07](S07-validacion-y-coordenadas.md): they should be checked against LROC images before being quoted to the jury. No figure in the pitch depends on them.
+
+**Not added:** the missing Artemis III regions and future CLPS missions: no published point was found for them, and the rule is that a site without a source does not go in.
+
+**How it is grouped.** The list's groups by region are kept (south pole, other latitudes and your points). Each site gains `program` and `year`, which feed the search.
+
+## What the user will see
+
+- About 35 sites, grouped by region and programme.
+- A search field in the list, by name, programme or year.
+- Optional: a north/south switch on the polar map and a real horizon north of 80°N.
+
+## Design
+
+### Catalogue
+
+**Sites added**, each with its source under the rule of [S07](S07-validacion-y-coordenadas.md):
+
+- Apollo 12, 14, 15 and 16.
+- Luna 9, 16, 17 and 24; Surveyor 1 and 3.
+- Chang'e 3, 5 and 6.
+- The Artemis III candidate regions missing from the nine of October 2024, as representative points.
+- Upcoming CLPS and commercial missions with an announced site.
+
+**Changes in [sites.ts](../../src/lib/sites.ts):**
+
+- New field `program`: `apollo`, `luna`, `surveyor`, `change`, `chandrayaan`, `clps`, `artemis`, `commercial` or `other`.
+- New field `year`: year of the landing, or the planned one. It is omitted for points that do not correspond to a mission.
+- The search compares the text with the name, the tag, the programme and the year.
+
+**Site list** (`SiteList` in [Panels.tsx](../../src/components/Panels.tsx)): search field at the top and collapsible groups by region.
+
+**New polar sites.** Each site south of 80°S needs its precomputed horizons, and its patches if [S11](S11-vista-3d.md) is done. `npm run precompute` has to be run on a machine with the fine grids and the new files pushed.
+
+**Rule:** a site without a reliable source for its coordinates does not go into the catalogue.
+
+### North pole (optional)
+
+The equivalent products exist. Checked on 14 November 2026 on the same server the southern ones are downloaded from:
+
+| Product | Cell | Size |
+| --- | --- | --- |
+| `ldem_75n_240m` | 240 m | 29 MB, the same as the southern one |
+| `ldem_80n_80m` | 80 m | 116 MB |
+| `ldem_85n_40m` | 40 m | 115 MB |
+| `ldem_875n_20m` | 20 m | 115 MB |
+
+- Only the 240 m grid is used: `npm run fetch-data -- --north`.
+- [dem.js](../../server/dem.js), [horizon.js](../../server/horizon.js) and the shader of [PolarMap.tsx](../../src/components/PolarMap.tsx) assume the south pole. The sign of the projection and the coverage (today `COVERAGE_MAX_LAT = -80`) have to be generalised.
+- `/api/heightmap` accepts `pole=n`, and the polar map gains the north/south switch.
+- `Site.group` gains the value `north`.
+- The point search and the fine grids of the north are left out.
+
+## Acceptance criteria
+
+1. The catalogue has at least 35 sites, all with source and programme, and with year those that correspond to a mission.
+2. Searching "CLPS" or "1972" filters the list correctly.
+3. Shareable links with new sites work.
+4. Every new site south of 80°S has its three precomputed horizons.
+5. If the north pole is done: a point on the rim of Peary crater shows a horizon with real terrain, and all the south pole tests give the same results as before.
+
+## Tests
+
+- Automated: no repeated id, coordinates within range, all sites with source and programme, the search filter and criterion 4. The test in [sites.test.ts](../../tests/sites.test.ts) already covers part.
+- In the browser: the search and the groups, in `npm run e2e` ([S15](S15-pruebas-de-navegador.md)).
+- By hand: criterion 5.
+
+## Out of scope
+
+- Impact sites and orbiter sites.
+- Detailed fact sheets for each mission.
+- Fine terrain and point search at the north pole.
+
+## Risks
+
+- **Possible cut:** the whole north pole, and then the extra sites. Neither is needed for the demo.
+- **Coordinates without a reliable source.** That site does not go in.
+- **Generalising the pole breaks the south.** Criterion 5 requires that the current tests do not change.
+- **Whoever adds polar sites needs the fine grids** (345 MB) to precompute.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S13: Catálogo ampliado y polo norte
 

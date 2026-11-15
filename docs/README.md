@@ -1,3 +1,78 @@
+<a id="en"></a>
+**English** | [Español](#es)
+
+# LUMINA documentation
+
+> Index generated with `npm run docs:index` from the front matter of each file. Do not edit it by hand.
+
+## Where to start
+
+- [Project README](../README.md): What LUMINA is, how it works and how to start it.
+- [Implementation plan](PLAN.md): What is done, what is left and in what order; tracks, working rules, cuts and risks.
+- [Pitch for the jury](PITCH.md): Problem, results, three-minute demo and likely questions.
+- [Scientific validation](VALIDACION.md): Comparison of LUMINA's results with published values.
+
+## Specs
+
+17 specs: 0 pending, 0 in progress, 17 done, 0 cut.
+
+| ID | Spec | Day | Priority | Status | Depends on |
+| --- | --- | --- | --- | --- | --- |
+| S01 | [Comparable scenarios](specs/S01-escenarios.md)<br>Compare the same site side by side on different dates, durations or mast heights. | 1 | essential | done | — |
+| S02 | [Shareable links](specs/S02-enlaces-compartibles.md)<br>Copy a link that opens exactly the same comparison in another browser. | 1 | essential | done | [S01](specs/S01-escenarios.md) |
+| S03 | [Continuous integration and public deployment](specs/S03-ci-y-despliegue.md)<br>Every change is tested automatically and there is a public address the jury can open. | 1 | essential | done | — |
+| S04 | [Search for nearby points](specs/S04-buscador-de-puntos.md)<br>A heat map around a point and the five best places to land nearby. | 2 | essential | done | [S01](specs/S01-escenarios.md) |
+| S05 | [Search for the best dates](specs/S05-mejores-fechas.md)<br>The five best landing dates of the year for a given site and duration. | 2 | essential | done | [S01](specs/S01-escenarios.md) |
+| S06 | [Multi-resolution terrain](specs/S06-terreno-multirresolucion.md)<br>Horizon computed with cells of 20 to 80 m near the site, instead of 240 m. | 3 | essential | done | — |
+| S07 | [Scientific validation and official coordinates](specs/S07-validacion-y-coordenadas.md)<br>A table that compares our results with published ones, and every site with its source. | 3 | essential | done | [S06](specs/S06-terreno-multirresolucion.md) |
+| S08 | [Power and battery model](specs/S08-energia-y-bateria.md)<br>Power, daily energy and the battery needed to survive the longest night. | 4 | essential | done | [S01](specs/S01-escenarios.md) |
+| S09 | [Real contact windows](specs/S09-ventanas-de-contacto.md)<br>Link with an elevation margin and with the ground stations that see the Moon at each moment. | 4 | essential | done | [S01](specs/S01-escenarios.md) |
+| S10 | [Window export and report](specs/S10-exportacion.md)<br>Download the windows as CSV and print a one-page report with the comparison. | 4 | can be cut | done | [S01](specs/S01-escenarios.md), [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md) |
+| S11 | [3D view of the terrain](specs/S11-vista-3d.md)<br>Stand at the site, at mast height, and look around while the Sun and Earth move over the real relief. | 5 | can be cut | done | [S06](specs/S06-terreno-multirresolucion.md) |
+| S12 | [Educational mode](specs/S12-modo-educativo.md)<br>A five-step guided tour, a glossary and a simple view for non-specialists. | 5 | essential | done | [S01](specs/S01-escenarios.md) |
+| S13 | [Extended catalogue and north pole](specs/S13-catalogo-y-polo-norte.md)<br>More historic and future sites, with a search, and real terrain at the north pole too. | 5 | can be cut | done | [S07](specs/S07-validacion-y-coordenadas.md) |
+| S14 | [Robustness and quality](specs/S14-robustez-y-calidad.md)<br>That it works on any machine and browser, with the keyboard, and with no surprises in the demo. | 6 | essential | done | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
+| S15 | [Browser tests in the repository](specs/S15-pruebas-de-navegador.md)<br>One command that opens the app in a real browser and checks every feature, on every pull request too. | 4 | essential | done | [S03](specs/S03-ci-y-despliegue.md) |
+| S16 | [Distance to permanent shadow](specs/S16-sombra-permanente.md)<br>Each site says how far away the nearest permanently shadowed area is, where ice can be preserved. | 5 | can be cut | done | [S04](specs/S04-buscador-de-puntos.md), [S07](specs/S07-validacion-y-coordenadas.md) |
+| S17 | [Relief across the whole Moon](specs/S17-relieve-global.md)<br>Sites away from the south pole, such as those of the Apollo programme, have a horizon with real relief and a 3D view, like the polar ones. | 7 | can be cut | done | [S06](specs/S06-terreno-multirresolucion.md), [S11](specs/S11-vista-3d.md), [S13](specs/S13-catalogo-y-polo-norte.md) |
+
+## Project history
+
+Most recent first.
+
+| Date | Entry | Type |
+| --- | --- | --- |
+| 2026-11-15 | [Project finished (v1.0.0)](historial/2026-11-15-17-proyecto-terminado.md)<br>All 17 specs are done and LUMINA closes with the v1.0.0 tag. It is deployed on Hostinger with all the data. What could not be checked by hand is on record. | milestone |
+| 2026-11-15 | [Real relief across the whole Moon](historial/2026-11-15-16-relieve-global.md)<br>The 25 catalogue sites away from the south pole, such as the Apollo ones, have a horizon with real relief and a 3D view. The global topography is precomputed once and goes in the repository, so the rest of the team downloads nothing. | milestone |
+| 2026-11-15 | [The polar map stays on its data and the list takes sites out of the comparison](historial/2026-11-15-15-mapa-y-comparar.md)<br>Testing the integrated version showed that the map's zoom buttons did nothing, that the map could be dragged off its data and that there was no clear way to take a site out of the comparison. Fixed. | incident |
+| 2026-11-15 | [Specs S08 to S16 implemented, except S11](historial/2026-11-15-14-specs-s08-a-s16.md)<br>Power, contact, export, educational mode, catalogue, permanent shadow, robustness and browser tests, on stacked branches. | milestone |
+| 2026-11-15 | [The 3D view opens from the panorama](historial/2026-11-15-13-vista-3d.md)<br>S11 goes from a map tab to a full-screen first-person view, with the real relief and the Sun and Earth in motion. Phase 1 implemented. | decision |
+| 2026-11-14 | [All the pending specs, ready to implement](historial/2026-11-14-12-specs-completas-y-plan.md)<br>S03 and S08 to S14 reviewed against the real code, two new specs (S15 and S16) and a plan with order, tracks and rules. | decision |
+| 2026-11-14 | [Collapsible panels, enlarged map and new logo](historial/2026-11-14-11-paneles-plegables.md)<br>Each section collapses and remembers its state; one button gives the map the full width. Merged with S01 to S07 and already in main. | milestone |
+| 2026-11-14 | [Specs S06 and S07 implemented](historial/2026-11-14-10-specs-s06-y-s07.md)<br>Terrain of 20 to 80 m, precomputed horizons and validation against NASA's maps and Gläser et al. | milestone |
+| 2026-11-14 | [Two decimals of latitude were enough at 240 m; at 20 m they are not](historial/2026-11-14-09-trescientos-metros.md)<br>On fine terrain, the catalogue's Shackleton point went from 100% to 12% sunlight; its coordinates had 300 m of leeway. | finding |
+| 2026-11-14 | [Specs S01 to S05 implemented](historial/2026-11-14-08-specs-s01-a-s05.md)<br>Scenarios, shareable links, point search and date search, and the server ready to go public. | milestone |
+| 2026-11-14 | [A five-month delay takes the ridge from 100% to 28% sunlight](historial/2026-11-14-07-estaciones-lunares.md)<br>The date search shows the lunar seasons; southern winter falls at the end of April 2027. | finding |
+| 2026-11-14 | [Rounding a point by 16 m changed its link from 100% to 93%](historial/2026-11-14-06-dieciseis-metros.md)<br>Custom points were stored with three decimals; they are now stored with five. | finding |
+| 2026-11-14 | [The week's plan turned into 14 specs](historial/2026-11-14-05-plan-y-specs.md)<br>The remaining work is split into specs with a status, and the index generates itself. | decision |
+| 2026-11-14 | [Publishing on GitHub and a resumable data download](historial/2026-11-14-04-publicacion-y-descarga.md)<br>Testing a clean clone revealed a fault in the DEM download; it was fixed before publishing. | incident |
+| 2026-11-14 | [At Malapert, 1.2 km separate 0% and 100% link](historial/2026-11-14-03-hallazgo-malapert.md)<br>The catalogue point was blocked by its own slope; moved 1.2 km it has continuous link. | finding |
+| 2026-11-14 | [Design decisions of the MVP](historial/2026-11-14-02-decisiones-de-diseno.md)<br>Why the ephemeris runs in the browser, the terrain on the server, and how "visible" is defined. | decision |
+| 2026-11-14 | [MVP built and verified](historial/2026-11-14-01-mvp.md)<br>First complete version of LUMINA, from the ephemeris to the interface, tagged mvp-v0.1.0. | milestone |
+
+## How to maintain this
+
+- **Every document is bilingual:** English first, Spanish below. In the front matter, `title` and `summary` are the English of `titulo` and `resumen`.
+- **Changing the status of a spec:** edit `estado` in its front matter (`pendiente`, `en curso`, `hecha`, `recortada`, that is: pending, in progress, done, cut) and run `npm run docs:index`.
+- **Adding a spec:** copy [specs/_plantilla.md](specs/_plantilla.md) with the next number (`S18-name.md`).
+- **Adding a history entry:** create `historial/YYYY-MM-DD-NN-name.md` with `fecha`, `titulo`, `title`, `tipo` (`hito`, `decisión`, `hallazgo`, `incidencia`, that is: milestone, decision, finding, incident), `resumen` and `summary`.
+- **Checking:** `npm run docs:check` fails if the index is out of date, a field is missing or there is a broken link.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
+
 # Documentación de LUMINA
 
 > Índice generado con `npm run docs:index` a partir de la cabecera de cada archivo. No lo edites a mano.
@@ -59,7 +134,8 @@ De lo más reciente a lo más antiguo.
 
 ## Cómo mantener esto
 
+- **Todos los documentos son bilingües:** primero en inglés y debajo en español. En la cabecera, `title` y `summary` son la versión en inglés de `titulo` y `resumen`.
 - **Cambiar el estado de una spec:** edita `estado` en su cabecera (`pendiente`, `en curso`, `hecha`, `recortada`) y ejecuta `npm run docs:index`.
-- **Añadir una spec:** copia [specs/_plantilla.md](specs/_plantilla.md) con el siguiente número (`S15-nombre.md`).
-- **Añadir una entrada al historial:** crea `historial/AAAA-MM-DD-NN-nombre.md` con `fecha`, `titulo`, `tipo` (`hito`, `decisión`, `hallazgo`, `incidencia`) y `resumen`.
+- **Añadir una spec:** copia [specs/_plantilla.md](specs/_plantilla.md) con el siguiente número (`S18-nombre.md`).
+- **Añadir una entrada al historial:** crea `historial/AAAA-MM-DD-NN-nombre.md` con `fecha`, `titulo`, `title`, `tipo` (`hito`, `decisión`, `hallazgo`, `incidencia`), `resumen` y `summary`.
 - **Comprobar:** `npm run docs:check` falla si el índice está desactualizado, falta un campo o hay un enlace roto.

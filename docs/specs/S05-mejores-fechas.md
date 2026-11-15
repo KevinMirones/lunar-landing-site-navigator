@@ -1,12 +1,66 @@
 ---
 id: S05
 titulo: Buscador de mejores fechas
+title: Search for the best dates
 estado: hecha
 dia: 2
 prioridad: imprescindible
 depende: S01
 resumen: Las cinco mejores fechas de alunizaje del año para un sitio y una duración dados.
+summary: The five best landing dates of the year for a given site and duration.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S05: Search for the best dates
+
+## Problem
+
+The year calendar shows the sunlight and link of each day, but the user has to judge by eye which date suits a 30-day mission. When a delay forces replanning, the question is direct: which is the next good date?
+
+## What the user will see
+
+- A third row in the calendar: the index the mission would have if it landed that day.
+- A "Best dates" list with the five best of the year, with sunlight, longest night and link.
+- Each date can be applied to the active scenario or added as a new scenario.
+- A filter that is on by default: "only dates with the Sun visible at landing". Landing at night is not viable for most missions.
+
+## Design
+
+- New function `windowScores(series, durationDays)` in [series.ts](../../src/lib/series.ts). The sunlight and link windows are computed once for the whole series; each candidate day only clips them, with a cursor that moves forward, so the cost grows linearly.
+- `bestDates(scores)` picks the dates, and `scoreOf` is the index formula, shared with the rest of the app.
+- The year series is extended from 366 to 366 + 90 days, so that a mission starting on the last day has data.
+- The five best dates are at least seven days apart. The first version used three and, with real data, proposed four dates almost in a row.
+- With the same index, the earlier date wins.
+- Everything is computed in the browser. No server is needed.
+
+## Acceptance criteria
+
+1. The index of the best date matches the one the scenario gives when it is applied (one point of difference at most, because of the two-hour step of the year series).
+2. The computation takes under 100 ms.
+3. With the filter on, no proposed date has the Sun hidden at landing.
+4. At Connecting Ridge with 30 days, the proposed dates have continuous sunlight and lie more than 60 days from the southern winter solstice (27 April 2027). See [the lunar seasons](../historial/2026-11-14-07-estaciones-lunares.md).
+5. An "Index" row in the calendar and a numbered triangle under each proposed date.
+
+## Tests
+
+- Automated: sliding window against the direct computation on ten dates, the sunlight filter, the spacing between dates and criterion 4 on real terrain.
+- In the browser: applying a date moves the landing and the scenario shows the promised index.
+
+## Out of scope
+
+- Launch constraints (injection windows, transfer orbit).
+- Combined search for point and date at once.
+
+## Risks
+
+- A single index hides trade-offs. The list always shows the three metrics, not just the index.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S05: Buscador de mejores fechas
 

@@ -1,12 +1,122 @@
 ---
 id: S12
 titulo: Modo educativo
+title: Educational mode
 estado: hecha
 dia: 5
 prioridad: imprescindible
 depende: S01
 resumen: Un recorrido guiado de cinco pasos, un glosario y una vista sencilla para quien no es especialista.
+summary: A five-step guided tour, a glossary and a simple view for non-specialists.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S12: Educational mode
+
+## Problem
+
+The challenge brief asks to serve educators and the public too. The app has explanatory sentences, but a newcomer sees a console full of figures and does not know where to start.
+
+## Status
+
+Implemented on 15 November and checked in the browser with [s12-educativo.mjs](../../e2e/s12-educativo.mjs) (21 checks):
+
+- The five steps, with arrows and Escape. Leaving at any step restores scenarios, instant, map, layer and collapsed panels, and the address does not change during the tour (criteria 2 and 3).
+- Texts in Spanish and English, 30 words at most. An automated test requires 40 at most (criterion 4).
+- In the simple view no element marked as expert stays visible, and the link with `x=simple` opens in the simple view (criteria 5 and 6).
+- Ten glossary terms, which open with a click or the keyboard and close with Escape.
+
+Criterion 1 is missing: that someone new to the subject does the tour without help. It is a test with people and is in the parallel work of the [plan](../PLAN.md).
+
+Along the way a design flaw of [S08](S08-energia-y-bateria.md) and [S09](S09-ventanas-de-contacto.md) showed up: their blocks lengthened the status column and stretched the map to 1871 px high, with the visible part in black. On wide screens the status column now scrolls inside itself, like the site list, and the map takes the height of the window.
+
+Differences from the design:
+
+- **Expert elements:** the tables of Sun and Earth angles, the source of the coordinates, the check with JPL Horizons, the mast, the point search, the power and communications blocks, and in the tables the longest night, "both", the battery and the contact.
+- **Glossary terms on screen:** all ten. Mast in the top bar; horizon and DEM on the site's terrain line; elevation and azimuth on the Sun card; direct link on the Earth card; viability index in the balance; libration and permanent shadow in the verdict sentences; ephemeris in the footer.
+
+## What the user will see
+
+**Guided tour.** A "Tour" button in the top bar opens a card with Previous, Next and Exit. At each step the app places itself at the right site, date and view, and unfolds the panel it talks about:
+
+| Step | The app shows | Idea |
+| --- | --- | --- |
+| 1 | Apollo 11, globe, 30-day playback | Near the equator the Sun climbs high: 14 days of light and 14 of night |
+| 2 | Connecting Ridge, panorama | At the pole the Sun circles round, grazing the horizon |
+| 3 | Floor of Shackleton, shadow map | 20 km from there the Sun never arrives, which is why there may be ice |
+| 4 | Malapert, Earth layer | Earth rises and falls with libration; the relief decides whether there is a link |
+| 5 | Scenario table | Now plan your mission: compare sites and dates |
+
+Each step has a text of 40 words at most, in Spanish and in English.
+
+**Simple view and expert view.** A switch in the top bar. By default, expert. The simple one keeps the panorama, the map, the countdowns, the index and the verdict sentences, and hides:
+
+- The tables of Sun and Earth angles, the source of the coordinates and the check with JPL Horizons.
+- The mast selector and the point search.
+- The power and communications blocks ([S08](S08-energia-y-bateria.md), [S09](S09-ventanas-de-contacto.md)).
+- In the scenario table, everything except site, landing, strips, sunlight, link and index.
+
+**Glossary.** Terms such as libration, azimuth, elevation or direct link appear underlined; pressing them opens a definition of one or two sentences.
+
+## Design
+
+**Tour.** New `src/lib/tour.ts`: a list of steps, each with its text and the state it applies.
+
+- The state of a step has the same shape as that of a shareable link, `SharedState` of [urlState.ts](../../src/lib/urlState.ts): scenarios, active scenario, hours since landing, map and layer. Applying a step is the same as opening a link.
+- In [App.tsx](../../src/App.tsx), the logic that today applies the link on start (`readLink`) is extracted into a function that the tour also uses.
+- Each step sets its own date, so that the tour tells the same story on any day. 14 November 2026 is used, the date of the figures in the [pitch](../PITCH.md).
+- Each step states which panels must be open (`hero`, `compare`, …). While the tour lasts, panel changes are not saved in the browser.
+- On entering, a copy of the state and the panels is saved; on leaving, they are restored.
+- During the tour the browser address does not change.
+- The card is a non-modal dialog: the app stays visible and usable behind it. Left and right arrows to move and Escape to leave.
+- The figures a text quotes must be reproducible in the app at that step, as the plan requires for the figures in the pitch.
+
+**Simple view.**
+
+- The app container carries `data-view="simple"` or `data-view="expert"`.
+- Each expert-only element is marked with `data-level="expert"`, and a rule in [styles.css](../../src/styles.css) hides it in the simple view. Specs that add engineering blocks only have to mark them.
+- The view chosen goes in the link: parameter `x=simple`. Without it, expert.
+- No computation changes.
+
+**Glossary.**
+
+- New `src/lib/glossary.ts`, with each term in Spanish and in English: libration, azimuth, elevation, horizon, direct link, mast, permanent shadow, viability index, ephemeris and DEM.
+- `Term` component: a button with its associated definition, accessible with keyboard and screen reader. Escape closes it.
+- It is used in the verdict sentences and in the panel labels.
+
+## Acceptance criteria
+
+1. Someone new to the subject completes the tour without help and explains in their own words why the south pole is difficult.
+2. The tour can be driven with the keyboard alone (arrows and Escape).
+3. Leaving the tour, at any step, returns the app to the state it was in: scenarios, instant, map, layer and panels.
+4. All the texts of the tour and the glossary exist in Spanish and in English, and none in the tour exceeds 40 words.
+5. In the simple view no element marked as expert stays visible.
+6. The link copied in the simple view opens in the simple view.
+
+## Tests
+
+- Automated: each step produces the expected state, leaving restores it, and criterion 4.
+- In the browser: criteria 2, 3, 5 and 6, with a new flow in `npm run e2e` ([S15](S15-pruebas-de-navegador.md)).
+- By hand: criterion 1, with at least one person.
+
+## Out of scope
+
+- Quizzes, scores or game mode.
+- Voice narration.
+- A tour the user can edit.
+
+## Risks
+
+- **The steps depend on particular dates and sites.** Each step sets its date, and a test checks that the sites it uses exist in the catalogue.
+- **A figure in the tour stops being true** when the terrain or the coordinates change. They are reviewed together with those of the pitch before delivery.
+- **Possible cut:** the glossary can be postponed; the tour cannot.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S12: Modo educativo
 

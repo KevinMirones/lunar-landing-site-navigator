@@ -1,12 +1,161 @@
 ---
 id: S09
 titulo: Ventanas de contacto reales
+title: Real contact windows
 estado: hecha
 dia: 4
 prioridad: imprescindible
 depende: S01
 resumen: Enlace con margen de elevación y con las estaciones de tierra que ven la Luna en cada momento.
+summary: Link with an elevation margin and with the ground stations that see the Moon at each moment.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S09: Real contact windows
+
+## Problem
+
+Today "link" means that half of Earth's disc clears the terrain. Two things a planner takes for granted are missing: a minimum elevation margin for the antenna, and a station on Earth looking at the Moon at that moment.
+
+## What the user will see
+
+- A collapsible "Communications" block in the site status, with two selectors:
+  - **Elevation margin:** 0°, 2° or 5° above the terrain.
+  - **Ground network:** none (geometry only, as today), NASA's Deep Space Network (Goldstone, Madrid and Canberra), or a single station of your own with its latitude and longitude.
+- With the defaults (margin 0° and no network) everything stays exactly as today.
+- With a network chosen:
+  - A "Contact" row in the timeline, with each stretch marked by the station that covers it.
+  - Daily contact hours and the longest contact outage in the mission balance.
+  - A "Contact" column in the scenario table.
+- On the Earth card, when the margin is not 0: "At +1.2° above the terrain; with a 2° margin there is no link."
+
+## Result
+
+Done on 15 November.
+
+| Criterion | Result |
+| --- | --- |
+| 1. Margin 0 and no network | The series is identical to the earlier one, value by value |
+| 2. More margin, less link | Checked at Malapert and Apollo 11 with 0°, 2° and 5° |
+| 3. With 2°, the link goes exactly below 2° | Every discrepancy falls in the step of the crossing |
+| 4. Deep Space Network at Malapert, 30 days | 100% of the time with link has contact, with a 5° margin. At Apollo 11, without margin, 98% |
+| 4. A single station (Madrid) at Apollo 11 | 9.4 h a day; the longest outage, 18 h 48 min |
+| 5. Elevation of the Moon against JPL Horizons | Under 0.1° at 33 instants of the three stations ([stations.json](../../tests/fixtures/stations.json), from [fetch-station-fixtures.mjs](../../scripts/fetch-station-fixtures.mjs)) |
+| 6. Search with a 5° margin | The centre cell gives the same link as the scenario: 56% and 56% |
+| 7. Shareable link | Reproduces margin and network in another tab |
+
+Checked in the browser with [s09-contacto.mjs](../../e2e/s09-contacto.mjs) (14 checks).
+
+**Finding.** At the summit of Malapert, a 5° margin lowers the link of the 30-day mission from 100% to 51% on 40 m terrain, and to 56% on the 240 m one. Earth spends a good part of the month less than 5° above the relief.
+
+Differences from the design:
+
+- **Speed.** The Moon is placed once per instant in an Earth-fixed frame, and each station is simple geometry after that. Precession and nutation are computed once per grid. First computation with the three stations: 130 to 170 ms per scenario on the second laptop, against 430 ms with a full ephemeris per station and instant. The difference from the full computation is under 0.01°.
+- **Contact hours in the balance.** They are in the mission balance and, in more detail, in the "Communications" block.
+- **The Earth card** says when the link is lost because of the margin: "At 2.2° above the terrain: with a 5° margin there is no link".
+
+## Design
+
+New `src/lib/comms.ts`. It imports with the `.ts` extension, because the server loads these modules.
+
+**Configuration**, one for the whole comparison:
+
+```ts
+interface CommsConfig {
+  marginDeg: 0 | 2 | 5;
+  network: 'none' | 'dsn' | 'single';
+  station?: { lat: number; lon: number };   // 'single' only
+}
+```
+
+**Elevation margin.** It is applied where the series is born, so that every figure respects it without touching the rest of the code:
+
+- `siteSeries` in [series.ts](../../src/lib/series.ts) receives the margin and computes `earthFrac` against the terrain horizon raised by those degrees. So "link" becomes half of Earth's disc clearing the terrain plus the margin.
+- With margin 0 the computation is identical to the current one.
+- The metrics, the index, the strips, the calendar and the best dates use it with no further change.
+- `analysisKey` in [scenario.ts](../../src/lib/scenario.ts) includes the margin, so as not to reuse an analysis made with another.
+- The point search receives it as a new parameter, `margin`, in `/api/search`, and passes it to `siteSeries` in [searchWorker.js](../../server/searchWorker.js). It goes into its cache key.
+- `skyAt` does not change: the Earth card keeps showing the real geometry, and decides whether there is a link by comparing the height above the terrain with the margin.
+
+**Stations.** A station sees the Moon when it is more than 10° of elevation above its horizon (constant `STATION_MASK_DEG`).
+
+| Station | Latitude | Longitude |
+| --- | --- | --- |
+| Goldstone | 35.43°N | 116.89°W |
+| Madrid (Robledo) | 40.43°N | 4.25°W |
+| Canberra (Tidbinbilla) | 35.40°S | 148.98°E |
+
+- The elevation of the Moon from each station is computed with `Equator` and `Horizon` of `astronomy-engine`.
+- It depends only on time, not on the lunar site: it is computed once per time grid and cached, like the ephemeris of `frameSeries`.
+
+**Contact:** there is a link from the site (with the margin) and at least one station sees the Moon. When several see it, the stretch is assigned to the one that has it highest.
+
+```ts
+interface CommsResult {
+  contactIntervals: Interval[];
+  byStation: Array<{ name: string; intervals: Interval[] }>;
+  contactShare: number;        // part of the mission with contact
+  contactHoursPerDay: number;
+  longestGapMs: number;
+}
+function analyzeComms(series: SiteSeries, metrics: Metrics, config: CommsConfig): CommsResult | null   // null with network 'none'
+```
+
+**What does not change with the network.** The viability index, the point search and the best dates keep using the geometric link with margin. The visibility of the stations depends on the time and not on the lunar site, so it barely changes which site or which date is better, and keeping it out avoids recomputing those features.
+
+**What each network teaches.** With the three stations, about 120° apart in longitude, coverage is nearly continuous and the interesting part is the handovers. With a single station the contact drops to between 6 and 13 hours a day: that is the case of many commercial missions.
+
+**Interface:**
+
+- New `src/components/Comms.tsx` with the block, inside a `Collapse` and marked as expert content for [S12](S12-modo-educativo.md).
+- [Timeline.tsx](../../src/components/Timeline.tsx): "Contact" row below "Link", only when there is a network, with the station's initial on each stretch.
+- `Compare` and the mission balance in [Panels.tsx](../../src/components/Panels.tsx): daily contact, only when there is a network.
+
+**Shareable link.** [urlState.ts](../../src/lib/urlState.ts) gains the `c` parameter, with the margin and the network:
+
+```
+c=5~dsn
+c=2~35.43,-116.89
+```
+
+If it is missing, `0~none` applies. An old link opens as before.
+
+## Acceptance criteria
+
+1. With margin 0 and no network, every figure in the app matches those from before this spec.
+2. Raising the margin never increases the link time.
+3. With a 2° margin the link disappears exactly at the instants when Earth is less than 2° above the terrain (maximum difference of one step of the series).
+4. With the three stations, on a 30-day mission at Malapert, the contact is at least 90% of the time with link. The measured value is written here.
+5. With a single station at mid latitude, the daily contact is between 5 and 14 hours when there is link all day.
+6. The elevation of the Moon from Madrid matches JPL Horizons at three instants, with an error under 0.1°.
+7. The point search with a 5° margin gives in its centre cell the same figures as the active scenario with that margin.
+8. The copied link reproduces the margin and the network in another browser.
+
+## Tests
+
+- Automated: criteria 1 to 3, 5 and 6 (the last with reference values stored in `tests/fixtures`, like those of [ephemeris.test.ts](../../tests/ephemeris.test.ts)), the `margin` parameter of the search and the round trip of the `c` parameter.
+- In the browser: criteria 4, 7 and 8, with a new flow in `npm run e2e` ([S15](S15-pruebas-de-navegador.md)).
+
+## Out of scope
+
+- Link budget in decibels and data rates.
+- Relay satellites.
+- Real availability and scheduling of the stations.
+- Other predefined networks.
+- The station network influencing the index, the point search or the best dates.
+
+## Risks
+
+- **Possible cut:** if time is short, the elevation margin stays and the stations part is postponed.
+- **The margin touches the function all the figures come from.** Criterion 1 is the safety net: with margin 0 nothing can change.
+- **Computation cost:** three stations per instant. It is computed once per time grid.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S09: Ventanas de contacto reales
 

@@ -1,12 +1,116 @@
 ---
 id: S10
 titulo: Exportación de ventanas e informe
+title: Window export and report
 estado: hecha
 dia: 4
 prioridad: recortable
 depende: S01, S08, S09
 resumen: Descargar las ventanas en CSV e imprimir un informe de una página con la comparación.
+summary: Download the windows as CSV and print a one-page report with the comparison.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S10: Window export and report
+
+## Problem
+
+The results exist only on the screen. A mission team needs to take them into a spreadsheet or attach them to a decision record.
+
+## Status
+
+Implemented on 15 November and checked with automated tests ([export.test.ts](../../tests/export.test.ts), 9) and in the browser ([s10-exportacion.mjs](../../e2e/s10-exportacion.mjs), 13):
+
+- **Criterion 2.** The `luz_solar` hours add up to the sunlight share of the table, in the automated test and in the app (720 h and 100% at Connecting Ridge).
+- **Criterion 3.** The comparison CSV has one row per scenario with the figures of the table. With four scenarios the report fits on one page: the test generates the PDF and counts its pages.
+- **Criterion 4.** The report carries the terrain resolution of each site, the visibility criteria and the link to reopen the comparison.
+- **Criterion 6.** The downloads work with the built app and its security headers.
+
+Criterion 1 is missing: opening the two CSVs in Excel and in Google Sheets. The format is designed for that (separator and decimals according to the language, byte order mark), but it has not been tried in those applications.
+
+Differences from the design:
+
+- **A4 landscape**, because the table has ten columns.
+- **The report is mounted directly under `<body>`** while printing, so that the print stylesheet can remove the whole app. Hiding it with `visibility` left its gap and the report took five pages.
+- **Comparison CSV:** besides the columns of the table, it carries the minimum battery, whether it is enough, and the daily contact. Cells that are not computed stay empty.
+- **The names of the columns, the events and the files** are translated into English when the interface is in English.
+- **The buttons are expert content** ([S12](S12-modo-educativo.md)).
+
+## What the user will see
+
+Three buttons in the header of "Compare scenarios":
+
+- **Download windows (CSV):** one row per window of each scenario.
+- **Download comparison (CSV):** the scenario table as it is shown.
+- **Print report:** one page with the comparison, ready to save as PDF from the browser.
+
+## Design
+
+New `src/lib/export.ts` with pure functions that return text. Everything is generated in the browser and no library is added.
+
+**Windows CSV**, with these columns:
+
+```
+escenario; sitio; latitud; longitud; alunizaje_utc; duracion_d; mastil_m; evento; inicio_utc; fin_utc; duracion_h; estacion
+```
+
+- `evento`: `luz_solar`, `enlace`, `contacto` (if there is a station network, [S09](S09-ventanas-de-contacto.md)) or `eclipse` ([S08](S08-energia-y-bateria.md)).
+- `estacion` is filled in only in the `contacto` rows.
+- The windows come from the same stretches the interface draws: `sunIntervals` and `earthIntervals` of `Metrics`, and the contact and eclipse ones from their specs.
+
+**Comparison CSV:** one row per scenario, with the columns of the table and, if they exist, minimum battery, verdict and daily contact.
+
+**Format of both:**
+
+- Dates in ISO 8601 and UTC.
+- With the interface in Spanish: separator `;` and decimal comma. In English: separator `,` and decimal point. That way Excel opens them correctly under each regional setting.
+- UTF-8 byte order mark at the start, so that Excel reads the accents.
+- File name: `lumina-ventanas-YYYY-MM-DD.csv` and `lumina-comparacion-YYYY-MM-DD.csv`.
+- Download with a `Blob` and a temporary link. It has to be checked that it works with the built app and its security headers.
+
+**Report:**
+
+- New `Report` component, which mounts when the button is pressed, calls `window.print()` and unmounts when printing ends.
+- Print stylesheet (`@media print`): it hides the rest of the app and switches to a white background with dark text, because the interface is dark.
+- It does not depend on which panels are collapsed on screen.
+- Content:
+  - Generation date and the shareable link of the state ([S02](S02-enlaces-compartibles.md)), written out.
+  - Scenario table with its window strips.
+  - Power and contact of each scenario, if those specs are done.
+  - Footer with the terrain resolution of each site, the visibility criteria (2% of the solar disc, half of Earth's disc, elevation margin) and the known limits.
+
+## Acceptance criteria
+
+1. The two CSVs open in Excel and in Google Sheets with the columns separated and the accents correct, in Spanish and in English.
+2. The sum of `duracion_h` of `luz_solar` for a scenario, divided by its duration, matches the sunlight percentage of the table (one point of difference at most).
+3. The comparison CSV has as many rows as scenarios and the same figures as the screen.
+4. The report with four scenarios fits on one A4 page and is readable printed in black and white.
+5. The report states the terrain resolution, the criteria used and the link to reopen the comparison.
+6. The downloads work with the built app served by `npm start`.
+
+## Tests
+
+- Automated: generation of the two CSVs, separators by language and criteria 2 and 3.
+- In the browser: that each button produces a download, in `npm run e2e` ([S15](S15-pruebas-de-navegador.md)).
+- By hand: criteria 1, 4 and 5.
+
+## Out of scope
+
+- KML or GeoJSON formats.
+- Reports with several pages or additional charts.
+- Generating the PDF without going through the print dialog.
+
+## Risks
+
+- **Possible cut:** the printable report is the first thing left out; the CSVs stay because they are cheap.
+- **It depends on two specs.** If [S08](S08-energia-y-bateria.md) or [S09](S09-ventanas-de-contacto.md) are not there, the CSVs come out with sunlight and link only and the report omits those sections.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S10: Exportación de ventanas e informe
 

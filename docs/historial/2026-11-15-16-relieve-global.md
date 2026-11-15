@@ -1,9 +1,40 @@
 ---
 fecha: 2026-11-15
 titulo: Relieve real en toda la Luna
+title: Real relief across the whole Moon
 tipo: hito
 resumen: Los 25 sitios del catálogo fuera del polo sur, como los Apollo, tienen horizonte con relieve real y vista 3D. La topografía global se precalcula una vez y va en el repositorio, así que el resto del equipo no descarga nada.
+summary: The 25 catalogue sites away from the south pole, such as the Apollo ones, have a horizon with real relief and a 3D view. The global topography is precomputed once and goes in the repository, so the rest of the team downloads nothing.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# Real relief across the whole Moon
+
+On testing the integrated `main`, Apollo 11 came out with a flat horizon and no 3D view. The 25 sites away from the south pole used a smooth Moon, because the project only had topography from 75°S to the pole. [S17](../specs/S17-relieve-global.md) was written and implemented the same day.
+
+## What was decided
+
+- **LOLA's global grid at 474 m** (`LDEM_64`, 531 MB), optional, with `npm run fetch-data -- --global`. With it, any custom point has relief. The 237 m one was ruled out because it weighs 2.1 GB.
+- **The 25 catalogue sites are precomputed** and go in the repository: 7.4 MB. Whoever does not download the global grid still sees the relief of those sites.
+- **A single height function for the whole Moon:** the polar grid where there is one and the global one elsewhere. The horizon and the 3D view stop asking about latitude and ask whether there is terrain at the point.
+- **The global grid is not loaded whole:** it is read in blocks of 4° × 4° and the last 32 MB are kept.
+
+## What was learned
+
+- **NASA's server shares out bandwidth per connection.** With a single connection it ran at 37 KB/s and the download would have taken 4 hours. With 16 connections and 1 MB pieces it reached 400 KB/s. `fetch-data` downloads every file of 16 MB or more that way, and records the finished pieces so it can resume. With 4 MB pieces, the 16 connections ran into the timeout at once.
+- **Far from the pole, the Sun climbs almost to the zenith.** The 3D camera, limited to 60° upwards, could not look at it, and now it reaches 85°. But opening the view looking at the Sun left the ground off the screen, so it opens tilted 15° at most. With 25°, the plain of Apollo 11 ended up behind the controls bar.
+- **The results fit the known terrain.** From Apollo 15, Hadley Delta is seen at 13° and Mons Hadley at 11°. From Apollo 17, the North Massif is seen at 14°. Apollo 11 does not go above 1°.
+
+## Merged with the map fixes
+
+The same branch carries the [fixes to the polar map and the comparison](2026-11-15-15-mapa-y-comparar.md), by the team's decision, and was merged straight into `main` on closing the project.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # Relieve real en toda la Luna
 

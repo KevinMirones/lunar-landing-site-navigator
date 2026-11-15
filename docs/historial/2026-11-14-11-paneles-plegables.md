@@ -1,9 +1,66 @@
 ---
 fecha: 2026-11-14
 titulo: Paneles plegables, mapa ampliado y logo nuevo
+title: Collapsible panels, enlarged map and new logo
 tipo: hito
 resumen: Cada sección se pliega y recuerda su estado; un botón deja el mapa a todo el ancho. Mezclado con S01 a S07 y ya en main.
+summary: Each section collapses and remembers its state; one button gives the map the full width. Merged with S01 to S07 and already in main.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# Collapsible panels, enlarged map and new logo
+
+Work done in parallel with specs S01 to S07, on another machine and without a spec of its own. It was done on the `samuel` branch (commit `7c2611a`), merged there with the specs from `main` (`986df5f`) and went into `main` with pull request #6.
+
+## What was done
+
+- **Collapsible sections.** The panorama, the timeline, the comparison and the calendar collapse with a button in their header.
+- **Side panels.** The site list and the site status close to one side and leave a narrow bar with their name, which reopens them. On screens where they sit above or below the map, they collapse upwards.
+- **Enlarged map.** A button in the map header closes both side panels at once and brings them back.
+- **The state is remembered** in the browser, under the `lumina.panels` key.
+- **Collapsing stops nothing.** It is visual only: the computations of a closed panel carry on, and the figures of the rest do not change.
+- **Logo and favicon.** The limb of the Moon with sunlight showing over it.
+- **Panorama.** Long labels, such as "Earth −3.9° (hidden)", are no longer cut off near the right edge.
+
+## How it is built
+
+- [Collapse.tsx](../../src/components/Collapse.tsx): `Collapse` (the region that collapses), `SectionToggle` (its button, with `aria-expanded` and accessible text) and the icons.
+- [Wordmark.tsx](../../src/components/Wordmark.tsx): the logo.
+- [util.ts](../../src/lib/util.ts): `useStoredState` (state remembered in the browser; if storage is blocked, it keeps working without remembering) and `useMedia`.
+- [App.tsx](../../src/App.tsx): the `PANELS` constant with one key per section (`sites`, `status`, `hero`, `when`, `compare`, `calendar`).
+- The animation is CSS, on the rows of a grid, so the panel animates its real size and the maps resize with it.
+
+## What the following specs must respect
+
+- A new interface block goes inside a `Collapse`, with its key in `PANELS` and its `SectionToggle` in the header.
+- A closed panel must not stop computing: other parts of the app use its results.
+- New keys are added to `PANELS` with their default value. `useStoredState` fills in with the defaults whatever is missing from a state saved by an earlier version.
+
+## The merge with main
+
+That same day `main` had received specs S01 to S05, which rewrite the state of `App.tsx`. The merge left eight conflicts, all in that file. All the features of `main` were kept and the panels were applied to them. Two visible changes:
+
+- The "Find the best point nearby" button ended up grouped with the layer selector and the enlarge-map button.
+- The title of the comparison is "Compare scenarios", as in `main`.
+
+## What was checked and what was not
+
+| Check | Result |
+| --- | --- |
+| `npm run build` (types and build) | Passes |
+| `npm test` | 117 pass, 5 skipped, 1 fails |
+| Compressed JavaScript | 262 KB |
+| The app in a browser, after the merge | Not checked |
+
+- The failing test is the timing one in [scenario.test.ts](../../tests/scenario.test.ts): 633 ms against a 300 ms limit. It only uses code that is identical to that of `main`; it fails because this machine is slower. [S03](../specs/S03-ci-y-despliegue.md) takes the timing tests out of `npm test`.
+- The combination of panels and search has not been seen on screen. [S15](../specs/S15-pruebas-de-navegador.md) includes a panels flow to cover it.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # Paneles plegables, mapa ampliado y logo nuevo
 

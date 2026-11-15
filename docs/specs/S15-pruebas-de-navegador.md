@@ -1,12 +1,131 @@
 ---
 id: S15
 titulo: Pruebas de navegador en el repositorio
+title: Browser tests in the repository
 estado: hecha
 dia: 4
 prioridad: imprescindible
 depende: S03
 resumen: Una orden que abre la app en un navegador real y comprueba cada función, también en cada pull request.
+summary: One command that opens the app in a real browser and checks every feature, on every pull request too.
 ---
+
+<a id="en"></a>
+**English** | [Español](#es)
+
+# S15: Browser tests in the repository
+
+## Problem
+
+Specs S01 to S07 were checked in a real browser with scripts that stayed in a temporary folder, outside the repository. Nobody else can repeat them. Now several people work at once on the same interface files, and the merge of 14 November (collapsible panels over specs S01 to S05) left eight conflicts in a single file, resolved by hand and not checked in the browser. A net is needed that warns when a change breaks what already worked.
+
+## What the user will see
+
+Nothing in the app. The team gains:
+
+- `npm run e2e`: opens the built app in a browser and goes through every feature. It ends with "ALL CHECKS PASSED" or with the list of what failed.
+- The same check on every pull request, inside continuous integration.
+
+## Status
+
+Done and checked on the second laptop, on 15 November:
+
+- `npm run e2e` with its launcher ([run.mjs](../../e2e/run.mjs)) and the shared helpers ([lib.mjs](../../e2e/lib.mjs)).
+- Six flows, all green and with no errors in the console: the five recovered ones, now adapted, and the new panels one.
+- With `E2E_HIRES=1` the checks with fine grids pass too, including the one that the precomputed horizon gives the same figures as the fine terrain.
+- Breaking the duplicate button on purpose makes the S01 flow fail, and it says at which step it stopped (criterion 3).
+- The new step in [ci.yml](../../.github/workflows/ci.yml), with the DEM cached.
+
+Missing:
+
+1. **Criterion 1, total time.** On the second laptop the suite takes about 5 minutes, with software WebGL. It has to be measured on the development laptop.
+2. **Criterion 5.** Seeing the new step green on GitHub. The repository is private and could not be checked from outside.
+
+## Design
+
+**Tool:** `playwright-core` as a development dependency. It drives a browser already installed, so it downloads none.
+
+- The browser is chosen with `E2E_CHANNEL`: by default `msedge` on Windows and `chrome` elsewhere.
+- Software WebGL (SwiftShader) by default. Forcing the graphics card, as the original scripts did, left the second laptop without WebGL2; it is still available with `E2E_GPU=1`.
+- The scripts are standalone modules with the functions of [lib.mjs](../../e2e/lib.mjs): `open` (opens the page and collects the console errors), `ready` (waits until nothing is still computing), `check` (records a check) and `done` (summarises and sets the exit code). No test framework is needed.
+- `npm run e2e -- s04 paneles` runs only the flows whose name contains one of those words.
+
+**Launcher** `e2e/run.mjs`, which is what `npm run e2e` runs:
+
+1. It checks that `dist/` exists; if not, it asks you to run `npm run build`.
+2. It starts the real server on a free port with `LUMINA_HIRES=0`. That way the result is the same with or without the fine grids installed: the catalogue sites answer with their precomputed horizons.
+3. It runs the flows one after another against that server and adds up the failures.
+4. It stops the server and exits with a non-zero code if anything failed.
+
+With `E2E_URL` step 2 is skipped and an address already running is tested, for example the public one.
+
+**Rules for the flows:**
+
+- Each flow opens the app with a shareable link that sets the state ([S02](S02-enlaces-compartibles.md)): date, sites and language. None depends on today's date.
+- Each flow starts with the browser storage empty, so that the panels are open.
+- None depends on the internet: the check with JPL Horizons is not used.
+- Any error in the browser console counts as a failure.
+- The flows are renamed to `sNN-name.mjs`.
+
+**Flows**, with what each one checks:
+
+| Flow | Checks | What it covers |
+| --- | --- | --- |
+| S01 scenarios | 16 | Duplicating with another date, that the top bar only edits the active one, common axis of the strips, removing, maximum of six |
+| S02 links | 14 | The address reflects the state, copying, opening in another tab, playing without filling the history, damaged links |
+| S04 search | 14 | Results on the Malapert slope, heat map, change of criterion with no new request, that the scenario created gives the promised figures, out of coverage. The two time limits are only checked with `LUMINA_PERF=1` |
+| S05 best dates | 12 | Index row, sorted list, Sun filter, applying and adding dates |
+| S06 and S07 | 11, and 4 more with `E2E_HIRES=1` | Terrain resolution and source of the coordinates on screen, precomputed horizon, English, 390 px wide |
+| Panels | 20 | What is in the list below |
+
+The S06 flow compared two servers, one with fine grids and one without. In `npm run e2e` only the part without fine grids remains; the other is run with `E2E_HIRES=1` on a machine that has them.
+
+**Panels flow** (what was done on 14 November):
+
+- Each section collapses and expands with its button, and the button changes its accessible text.
+- After reloading, the collapsed sections are still collapsed.
+- The enlarge-map button closes the two side panels and opens them again.
+- A closed side panel leaves a bar with its name, which reopens it.
+- At 390 px wide there is no horizontal overflow and the panels collapse upwards.
+- With a panel collapsed, the figures of the table do not change.
+
+**The following specs** add their own flow on finishing: it is part of "done" in the [plan](../PLAN.md).
+
+**Continuous integration.** One more step in [ci.yml](../../.github/workflows/ci.yml), after `npm run build`: `npm run e2e`.
+
+- GitHub's runners come with Chrome installed: `E2E_CHANNEL=chrome`.
+- They have no graphics card: the software WebGL of the flows is exactly what they need.
+- It needs the DEM. While it is not in the repository ([S03](S03-ci-y-despliegue.md)), continuous integration downloads it once and caches it. If the download fails, `E2E_ALLOW_NO_DEM=1` makes the step skip with a notice instead of failing.
+
+## Acceptance criteria
+
+1. `npm run e2e` passes locally against the built app, in under three minutes.
+2. It passes the same on a machine with fine grids and on one without.
+3. Breaking a feature on purpose (for example, removing the duplicate button) makes it end with an error and say which check failed.
+4. No flow leaves errors in the browser console.
+5. Continuous integration runs it on every pull request, or states why it skips it.
+6. The panels flow exists and passes.
+
+## Tests
+
+This spec is the tests. It is checked with criteria 1 to 3.
+
+## Out of scope
+
+- Screenshot comparison.
+- Testing in several browsers at once: that is the manual list of [S14](S14-robustez-y-calidad.md).
+- Performance tests.
+
+## Risks
+
+- **Fragile tests.** Several flows read the table text with regular expressions. When adapting them it is worth moving to stable selectors; if needed, `data-testid` attributes are added to the interface.
+- **Fixed waits fail on slow machines.** They are replaced with waits for the element to appear.
+- **No WebGL in continuous integration.** The drawing checks are skipped there and run locally.
+
+---
+
+<a id="es"></a>
+**Español** | [English](#en)
 
 # S15: Pruebas de navegador en el repositorio
 
