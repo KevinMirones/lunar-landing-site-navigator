@@ -10,6 +10,8 @@ interface Props {
   horizon: Horizon;
   sky: Sky;
   series: SiteSeries | null;
+  /** S11: opens the 3D view. With a reason, the button shows disabled and explains why. */
+  expand?: { onExpand: () => void; disabledReason: string | null };
 }
 
 const wrap180 = (az: number) => ((((az + 180) % 360) + 360) % 360) - 180;
@@ -22,7 +24,7 @@ const STARS = Array.from({ length: 90 }, (_, i) => {
   return { x: a - Math.floor(a), y: b - Math.floor(b), r: 0.4 + ((i * 7) % 5) * 0.14 };
 });
 
-export function Panorama({ horizon, sky, series }: Props) {
+export function Panorama({ horizon, sky, series, expand }: Props) {
   const tr = useTr();
   const lang = useLang();
   const [ref, size] = useSize<HTMLDivElement>();
@@ -192,6 +194,21 @@ export function Panorama({ horizon, sky, series }: Props) {
             }`
           : `${tr('Escala vertical', 'Vertical scale')} ×${exaggeration.toFixed(exaggeration < 3 ? 1 : 0)}`}
       </div>
+      {expand && (
+        <button
+          type="button"
+          className="pano-expand"
+          disabled={expand.disabledReason !== null}
+          title={expand.disabledReason ?? tr('Ponerse en el sitio y mirar alrededor, a pantalla completa', 'Stand on the site and look around, full screen')}
+          onClick={expand.onExpand}
+          onPointerMove={(e) => e.stopPropagation()}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {tr('Ver en 3D', 'View in 3D')}
+        </button>
+      )}
     </div>
   );
 }
