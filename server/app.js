@@ -156,9 +156,10 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
     const mast = num(req.query.mast ?? 2, 0, 500);
     const t0 = num(req.query.t0, -3e13, 3e13);
     const days = num(req.query.days, 1, 90);
+    const margin = num(req.query.margin ?? 0, 0, 10); // elevation margin for the Earth link (S09)
     const grid = Number(req.query.grid);
-    if ([lat, lon, radius, mast, t0, days].includes(null)) {
-      return res.status(400).json({ error: 'lat, lon, radius (1..20 km), mast, t0 (ms UTC) and days (1..90) are required' });
+    if ([lat, lon, radius, mast, t0, days, margin].includes(null)) {
+      return res.status(400).json({ error: 'lat, lon, radius (1..20 km), mast, t0 (ms UTC) and days (1..90) are required; margin is 0..10 degrees' });
     }
     if (!SEARCH_GRIDS.includes(grid)) return res.status(400).json({ error: `grid must be one of ${SEARCH_GRIDS.join(', ')}` });
     if (lat > COVERAGE_MAX_LAT) return res.status(400).json({ error: 'The search needs real terrain: the point must lie between 80°S and 90°S.' });
@@ -170,7 +171,7 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
     let gone = false;
     res.on('close', () => (gone = !res.writableEnded));
     try {
-      const result = await runSearch({ lat, lon, radius, mast, t0, days: Math.round(days), grid: used }, () => gone);
+      const result = await runSearch({ lat, lon, radius, mast, t0, days: Math.round(days), grid: used, margin }, () => gone);
       if (result) res.set('Cache-Control', 'public, max-age=3600').json(result);
     } catch (err) {
       res.status(500).json({ error: String(err.message || err) });

@@ -91,6 +91,21 @@ describe('the power configuration in the link (S08)', () => {
   });
 });
 
+describe('the contact settings in the link (S09)', () => {
+  it('are left out by default', () => {
+    expect(encode(full)).not.toContain('c=');
+  });
+  it('travel when they are set, together with the power configuration', () => {
+    const comms = { marginDeg: 5 as const, network: 'single' as const, station: { lat: -35.4, lon: 148.98 } };
+    const link = encode({ ...full, power: { ...DEFAULT_POWER, batteryWh: 9000 }, comms });
+    expect(link).toContain('&c=5~-35.4,148.98');
+    const { state, problems } = decode(link, known);
+    expect(problems).toEqual([]);
+    expect(state.comms).toEqual(comms);
+    expect(state.power?.batteryWh).toBe(9000);
+  });
+});
+
 describe('reading a damaged link', () => {
   it('reports a problem instead of failing on garbage', () => {
     const { state, problems } = decode('?s=xxx', known);

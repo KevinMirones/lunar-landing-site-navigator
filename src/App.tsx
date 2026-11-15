@@ -15,6 +15,7 @@ import {
   type Scenario,
   type ScenarioAnalysis,
 } from './lib/scenario';
+import { DEFAULT_COMMS, analyzeComms, encodeComms, type CommsConfig, type CommsResult } from './lib/comms';
 import { DEFAULT_POWER, analyzePower, encodePower, type PowerConfig, type PowerResult } from './lib/power';
 import { fetchSearch, rankCells, type Criterion, type SearchCell, type SearchResult } from './lib/search';
 import { bestDates, dailyShares, frameSeries, siteSeries, skyAt, windowScores, type Horizon, type TimeGrid } from './lib/series';
@@ -22,6 +23,7 @@ import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
 import { decode, encode, fromShared, toShared } from './lib/urlState';
 import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, useMedia, useStoredState, type Heightmap } from './lib/util';
 import { Chevron, Collapse, FocusIcon, SectionToggle } from './components/Collapse';
+import { Comms } from './components/Comms';
 import { Globe } from './components/Globe';
 import { BestDates, Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
@@ -37,7 +39,7 @@ const SPEEDS = [0.5, 2, 6]; // mission days per second
 const FALLBACK_SITE = CATALOG[0];
 const CALENDAR_DAYS = 366;
 // Which panels are open. Purely visual: closing one never stops its computations.
-const PANELS = { sites: true, status: true, hero: true, when: true, compare: true, calendar: true, power: true };
+const PANELS = { sites: true, status: true, hero: true, when: true, compare: true, calendar: true, power: true, comms: true };
 type Panel = keyof typeof PANELS;
 
 type LoadedHorizon = Horizon & { offline?: boolean };
@@ -68,6 +70,7 @@ function readLink() {
     view: state.view ?? (activeSite.lat <= -80 ? ('polar' as const) : ('globe' as const)),
     mode: state.mode ?? ('sun' as const),
     power: state.power ?? DEFAULT_POWER,
+    comms: state.comms ?? DEFAULT_COMMS,
     damaged: problems.length > 0,
   };
 }
@@ -111,6 +114,9 @@ export default function App() {
   const [mapMode, setMapMode] = useState<'sun' | 'earth'>(boot.mode);
   /** One lander for the whole comparison (S08): what changes between rows is the site and the date. */
   const [power, setPower] = useState<PowerConfig>(boot.power);
+  /** Elevation margin and ground network (S09); the margin changes every link figure. */
+  const [comms, setComms] = useState<CommsConfig>(boot.comms);
+  const margin = comms.marginDeg;
   const [linkDamaged, setLinkDamaged] = useState(boot.damaged);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [panels, setPanels] = useStoredState('lumina.panels', PANELS);
@@ -164,18 +170,18 @@ export default function App() {
       const s = siteOf(sc.siteId);
       const horizon = horizons[horizonKey(s, sc.mast)];
       if (!horizon) continue;
-      const key = analysisKey(sc, s);
+      const key = analysisKey(sc, s, margin);
       live.add(key);
       let hit = cache.current.get(key);
       if (!hit || hit.horizon !== horizon) {
-        hit = { horizon, analysis: analyzeScenario(sc, s, horizon) };
+        hit = { horizon, analysis: analyzeScenario(sc, s, horizon, { earthMarginDeg: margin }) };
         cache.current.set(key, hit);
       }
       out.set(sc.id, { ...hit.analysis, horizon });
     }
     for (const key of cache.current.keys()) if (!live.has(key)) cache.current.delete(key);
     return out;
-  }, [scenarios, siteOf, horizons]);
+  }, [scenarios, siteOf, horizons, margin]);
   const current = analyses.get(active.id);
   // Energy and battery of every scenario with the same lander (S08). The ephemeris grid is cached.
   const powers = useMemo(() => {
@@ -187,6 +193,17 @@ export default function App() {
     return out;
   }, [scenarios, analyses, power]);
   const currentPower = powers.get(active.id) ?? null;
+  // Contact with the ground network (S09): null for every scenario when there is none.
+  const contacts = useMemo(() => {
+    const out = new Map<string, CommsResult>();
+    for (const sc of scenarios) {
+      const a = analyses.get(sc.id);
+      const c = a ? analyzeComms(a.series, a.metrics, comms) : null;
+      if (c) out.set(sc.id, c);
+    }
+    return out;
+  }, [scenarios, analyses, comms]);
+  const currentContact = contacts.get(active.id) ?? null;
   const horizon = horizons[horizonKey(site, mast)];
 
   // Twelve months of daily conditions for the active site.
@@ -197,8 +214,8 @@ export default function App() {
   const yearSeries = useMemo(() => {
     if (!horizon) return null;
     const yearGrid: TimeGrid = { t0: yearStart, stepMs: 2 * HOUR, n: (CALENDAR_DAYS + 90) * 12 + 1 };
-    return siteSeries(site.lat, site.lon, horizon, frameSeries(yearGrid));
-  }, [site, horizon, yearStart]);
+    return siteSeries(site.lat, site.lon, horizon, frameSeries(yearGrid), margin);
+  }, [site, horizon, yearStart, margin]);
   const daily = useMemo(() => (yearSeries ? dailyShares(yearSeries, CALENDAR_DAYS) : null), [yearSeries]);
   // Best landing dates (S05): what a mission of this duration would get on each day of the calendar.
   const [requireSun, setRequireSun] = useState(true);
@@ -338,8 +355,9 @@ export default function App() {
         view: mapView,
         mode: mapMode,
         power: encodePower(power) === encodePower(DEFAULT_POWER) ? undefined : power,
+        comms: encodeComms(comms) === encodeComms(DEFAULT_COMMS) ? undefined : comms,
       })}`,
-    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode, power],
+    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode, power, comms],
   );
   useEffect(() => {
     if (playing) return; // the address waits until playback stops
@@ -363,12 +381,12 @@ export default function App() {
   const [searchFailed, setSearchFailed] = useState(false);
   const [searchTry, setSearchTry] = useState(0);
   const searchable = site.lat <= -80;
-  const searchKey = `${site.lat}|${site.lon}|${mast}|${landing}|${durationDays}|${search.radius}`;
+  const searchKey = `${site.lat}|${site.lon}|${mast}|${landing}|${durationDays}|${search.radius}|${margin}`;
   useEffect(() => {
     if (!search.open || !searchable) return;
     const ctl = new AbortController();
     setSearchFailed(false);
-    const q = { lat: site.lat, lon: site.lon, radius: search.radius, mast, t0: landing, days: durationDays };
+    const q = { lat: site.lat, lon: site.lon, radius: search.radius, mast, t0: landing, days: durationDays, margin };
     // A coarse grid answers in under a second; the fine one replaces it a few seconds later.
     const timer = window.setTimeout(async () => {
       try {
@@ -410,8 +428,8 @@ export default function App() {
   );
 
   const rows: ScenarioRow[] = useMemo(
-    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null, power: powers.get(sc.id) ?? null })),
-    [scenarios, siteOf, analyses, powers],
+    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null, power: powers.get(sc.id) ?? null, contact: contacts.get(sc.id) ?? null })),
+    [scenarios, siteOf, analyses, powers, contacts],
   );
   const inUse = useMemo(() => scenarios.map((s) => s.siteId), [scenarios]);
   const span = maxSpanMs(scenarios);
@@ -603,7 +621,7 @@ export default function App() {
               </div>
               <Collapse id="status-fold" open={panels.status || !statusStacked}>
                 {horizon && sky && current ? (
-                  <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} />
+                  <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} marginDeg={margin} contact={currentContact} />
                 ) : (
                   <p className="empty">{tr('Calculando…', 'Computing…')}</p>
                 )}
@@ -614,6 +632,15 @@ export default function App() {
                   </div>
                   <Collapse id="power-body" open={panels.power}>
                     <Power config={power} onChange={setPower} result={currentPower} landing={landing} now={now} />
+                  </Collapse>
+                </section>
+                <section className="status-extra" data-level="expert" aria-labelledby="comms-title">
+                  <div className="block-head">
+                    <h3 id="comms-title" className="earth">{tr('Comunicaciones', 'Communications')}</h3>
+                    <SectionToggle open={panels.comms} controls="comms-body" label={tr('las comunicaciones', 'the communications block')} onToggle={() => togglePanel('comms')} />
+                  </div>
+                  <Collapse id="comms-body" open={panels.comms}>
+                    <Comms config={comms} onChange={setComms} result={currentContact} earthShare={current?.metrics.earthShare ?? null} />
                   </Collapse>
                 </section>
               </Collapse>
@@ -647,7 +674,7 @@ export default function App() {
           </div>
           <Collapse id="when-body" open={panels.when}>
             {current && horizon ? (
-              <Timeline series={current.series} horizon={horizon} metrics={current.metrics} power={currentPower} now={now} onScrub={(t) => setElapsed(t - landing)} />
+              <Timeline series={current.series} horizon={horizon} metrics={current.metrics} power={currentPower} contact={currentContact} now={now} onScrub={(t) => setElapsed(t - landing)} />
             ) : (
               <p className="empty">{tr('Calculando…', 'Computing…')}</p>
             )}

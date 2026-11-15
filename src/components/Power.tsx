@@ -1,8 +1,8 @@
 // "Energía" block of the site status (S08): a few inputs for a generic lander and
 // what they give on the active scenario. The figures come from src/lib/power.ts.
-import { useEffect, useState } from 'react';
 import type { PanelKind, PowerConfig, PowerResult } from '../lib/power';
 import { fmtDate, fmtDuration, useLang, useTr } from '../lib/util';
+import { NumberField } from './NumberField';
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
@@ -13,51 +13,6 @@ export function sig2(x: number): string {
 }
 export const fmtWatts = (w: number) => (w >= 1000 ? `${sig2(w / 1000)} kW` : `${sig2(w)} W`);
 export const fmtWattHours = (wh: number) => (wh >= 1000 ? `${sig2(wh / 1000)} kWh` : `${sig2(wh)} Wh`);
-
-interface FieldProps {
-  label: string;
-  unit: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  onCommit: (v: number) => void;
-}
-
-/** A number input that keeps what is being typed and commits only valid values. */
-function NumberField({ label, unit, value, min, max, step = 1, onCommit }: FieldProps) {
-  const [text, setText] = useState(String(value));
-  const [editing, setEditing] = useState(false);
-  useEffect(() => {
-    if (!editing) setText(String(value));
-  }, [value, editing]);
-  const valid = (v: number) => Number.isFinite(v) && v >= min && v <= max;
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <span className="field-input">
-        <input
-          type="number"
-          inputMode="decimal"
-          min={min}
-          max={max}
-          step={step}
-          value={text}
-          aria-label={`${label} (${unit})`}
-          aria-invalid={!valid(Number(text))}
-          onFocus={() => setEditing(true)}
-          onBlur={() => setEditing(false)}
-          onChange={(e) => {
-            setText(e.target.value);
-            const v = Number(e.target.value);
-            if (e.target.value.trim() !== '' && valid(v)) onCommit(v);
-          }}
-        />
-        <span className="unit">{unit}</span>
-      </span>
-    </label>
-  );
-}
 
 interface Props {
   config: PowerConfig;

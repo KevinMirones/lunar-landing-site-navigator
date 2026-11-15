@@ -1,7 +1,7 @@
 ---
 id: S09
 titulo: Ventanas de contacto reales
-estado: pendiente
+estado: hecha
 dia: 4
 prioridad: imprescindible
 depende: S01
@@ -25,6 +25,31 @@ Hoy "enlace" significa que medio disco de la Tierra supera el terreno. Faltan do
   - Horas de contacto diarias y corte de contacto más largo en el balance de la misión.
   - Una columna "Contacto" en la tabla de escenarios.
 - En la tarjeta de la Tierra, cuando el margen no es 0: "A +1.2° sobre el terreno; con margen de 2° no hay enlace."
+
+## Resultado
+
+Hecha el 15 de noviembre.
+
+| Criterio | Resultado |
+| --- | --- |
+| 1. Margen 0 y sin red | La serie es idéntica a la de antes, valor por valor |
+| 2. Más margen, menos enlace | Comprobado en Malapert y Apollo 11 con 0°, 2° y 5° |
+| 3. Con 2°, el enlace se va justo bajo 2° | Toda discrepancia cae en el paso del cruce |
+| 4. Red del Espacio Profundo en Malapert, 30 días | El 100% del tiempo con enlace tiene contacto, con margen de 5°. En Apollo 11, sin margen, el 98% |
+| 4. Una sola estación (Madrid) en Apollo 11 | 9.4 h al día; el corte más largo, 18 h 48 min |
+| 5. Elevación de la Luna frente a JPL Horizons | Menos de 0.1° en 33 instantes de las tres estaciones ([stations.json](../../tests/fixtures/stations.json), de [fetch-station-fixtures.mjs](../../scripts/fetch-station-fixtures.mjs)) |
+| 6. Buscador con margen de 5° | La celda central da el mismo enlace que el escenario: 56% y 56% |
+| 7. Enlace compartible | Reproduce margen y red en otra pestaña |
+
+Comprobado en el navegador con [s09-contacto.mjs](../../e2e/s09-contacto.mjs) (14 comprobaciones).
+
+**Hallazgo.** En la cima de Malapert, un margen de 5° baja el enlace de la misión de 30 días del 100% al 51% con terreno de 40 m, y al 56% con el de 240 m. La Tierra pasa buena parte del mes a menos de 5° sobre el relieve.
+
+Diferencias con el diseño:
+
+- **Velocidad.** La Luna se sitúa una vez por instante en un sistema fijo a la Tierra, y cada estación es después geometría sencilla. La precesión y la nutación se calculan una vez por rejilla. Primer cálculo con las tres estaciones: 130 a 170 ms por escenario en el segundo portátil, frente a 430 ms con una efeméride completa por estación e instante. La diferencia con el cálculo completo es menor de 0.01°.
+- **Horas de contacto en el balance.** Están en el balance de la misión y, con más detalle, en el bloque "Comunicaciones".
+- **La tarjeta de la Tierra** dice cuándo el enlace se pierde por el margen: "A 2.2° sobre el terreno: con margen de 5° no hay enlace".
 
 ## Diseño
 

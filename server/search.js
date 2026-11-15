@@ -55,8 +55,8 @@ let jobs = 0;
  * Runs a search, or returns null when `isCancelled` turns true before it ends.
  * All the work happens in worker threads, so the API keeps answering meanwhile.
  */
-export function runSearch({ lat, lon, radius, mast, t0, days, grid }, isCancelled = () => false) {
-  const key = [lat, lon, radius, mast, t0, days, grid].join('|');
+export function runSearch({ lat, lon, radius, mast, t0, days, grid, margin = 0 }, isCancelled = () => false) {
+  const key = [lat, lon, radius, mast, t0, days, grid, margin].join('|');
   if (cache.has(key)) return Promise.resolve(cache.get(key));
 
   const job = queue.then(async () => {
@@ -73,7 +73,7 @@ export function runSearch({ lat, lon, radius, mast, t0, days, grid }, isCancelle
     const watch = setInterval(() => isCancelled() && workers.cancel(jobId), 100);
     let parts;
     try {
-      parts = await Promise.all(batches.map((b) => workers.run({ cells: b, mast, t0, days }, jobId)));
+      parts = await Promise.all(batches.map((b) => workers.run({ cells: b, mast, t0, days, margin }, jobId)));
     } finally {
       clearInterval(watch);
     }

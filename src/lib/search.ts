@@ -85,6 +85,8 @@ export interface SearchQuery {
   t0: number;
   days: number;
   grid: number;
+  /** Elevation margin of the Earth link, degrees (S09). */
+  margin: number;
 }
 
 export async function fetchSearch(q: SearchQuery, signal?: AbortSignal): Promise<SearchResult> {

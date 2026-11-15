@@ -2,7 +2,8 @@
 import { memo, useMemo, useState } from 'react';
 import { SUN_RADIUS_KM, moonFixedVectors, siteFrame, topocentric } from '../lib/ephemeris';
 import type { Scenario } from '../lib/scenario';
-import { nextEvent, type Horizon, type Metrics, type Sky, type WindowScores } from '../lib/series';
+import { discFraction, nextEvent, type Horizon, type Metrics, type Sky, type WindowScores } from '../lib/series';
+import type { CommsResult } from '../lib/comms';
 import type { PowerResult } from '../lib/power';
 import { fmtWattHours } from './Power';
 import { normLon, type Site } from '../lib/sites';
@@ -124,9 +125,13 @@ interface StatusProps {
   metrics: Metrics;
   now: number;
   windowEnd: number;
+  /** Elevation margin of the Earth link, degrees (S09). */
+  marginDeg?: number;
+  /** Contact with the ground network (S09), or null without one. */
+  contact?: CommsResult | null;
 }
 
-export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusProps) {
+export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg = 0, contact = null }: StatusProps) {
   const tr = useTr();
   const lang = useLang();
   const sunEv = nextEvent(metrics.sunIntervals, now, windowEnd);
@@ -147,6 +152,15 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
     : earthEv.at
       ? `${tr('Enlace vuelve en', 'Link returns in')} ${fmtDuration(earthEv.at - now)}`
       : tr('Sin enlace directo en esta misión', 'No direct link during this mission');
+
+  // With a margin (S09) the link needs Earth that many degrees above the terrain.
+  const linked = marginDeg > 0 ? discFraction(horizon, sky.earth.az, sky.earth.el - marginDeg, sky.earth.radius) > 0.5 : sky.earth.frac > 0.5;
+  const above = sky.earth.el - sky.earth.horizon;
+  const earthState = linked
+    ? tr('Enlace directo disponible', 'Direct link available')
+    : sky.earth.frac > 0.5
+      ? tr(`A ${deg(above)} sobre el terreno: con margen de ${marginDeg}° no hay enlace`, `${deg(above)} above the terrain: with a ${marginDeg}° margin there is no link`)
+      : tr('Sin línea de vista', 'No line of sight');
 
   return (
     <div className="status">
@@ -197,7 +211,7 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
         <Closeup horizon={horizon} body={sky.earth} kind="earth" />
         <div>
           <h3>{tr('Tierra', 'Earth')}</h3>
-          <p className="state">{sky.earth.frac > 0.5 ? tr('Enlace directo disponible', 'Direct link available') : tr('Sin línea de vista', 'No line of sight')}</p>
+          <p className="state">{earthState}</p>
           <p className="countdown">{earthLine}</p>
         </div>
         <dl>
@@ -229,6 +243,14 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
           <dd>{metrics.longestNoEarthMs > 0 ? fmtDuration(metrics.longestNoEarthMs) : tr('ninguno', 'none')}</dd>
           <dt>{tr('Luz y enlace a la vez', 'Sunlight and link together')}</dt>
           <dd>{pct(metrics.bothShare)}</dd>
+          {contact && (
+            <>
+              <dt>{tr('Contacto con estaciones, al día', 'Contact with stations, a day')}</dt>
+              <dd>{contact.contactHoursPerDay.toFixed(1)} h</dd>
+              <dt>{tr('Corte de contacto más largo', 'Longest contact gap')}</dt>
+              <dd>{contact.longestGapMs > 0 ? fmtDuration(contact.longestGapMs) : tr('ninguno', 'none')}</dd>
+            </>
+          )}
         </dl>
         <Insights site={site} horizon={horizon} metrics={metrics} />
         <JplCheck site={site} now={now} />
@@ -352,6 +374,8 @@ export interface ScenarioRow {
   metrics: Metrics | null;
   /** Energy and battery with the shared lander (S08); null while loading. */
   power: PowerResult | null;
+  /** Contact with the ground network (S09); null without one. */
+  contact: CommsResult | null;
 }
 
 interface CompareProps {
@@ -383,10 +407,12 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
       both: max((m) => m.bothShare),
       score: max((m) => m.score),
       battery: Math.min(...ps.map((p) => p.minBatteryWh)),
+      contact: Math.max(...rows.map((r) => r.contact?.contactHoursPerDay ?? -1)),
     };
   }, [rows]);
   const mark = (cond: boolean) => (cond && best.n > 1 ? 'is-best' : '');
   const spanDays = Math.round(spanMs / 86400e3);
+  const withContact = rows.some((r) => r.contact);
 
   return (
     <div className="compare-scroll">
@@ -410,6 +436,11 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
             <th>{tr('Enlace', 'Link')}</th>
             <th>{tr('Ambos', 'Both')}</th>
             <th>{tr('Índice', 'Index')}</th>
+            {withContact && (
+              <th data-level="expert" title={tr('Horas al día con enlace y alguna estación viendo la Luna.', 'Hours a day with a link and some station seeing the Moon.')}>
+                {tr('Contacto', 'Contact')}
+              </th>
+            )}
             <th data-level="expert" title={tr('Batería mínima para sobrevivir la misión, con el módulo del bloque Energía.', 'Smallest battery that survives the mission, with the lander of the Power block.')}>
               {tr('Batería', 'Battery')}
             </th>
@@ -417,7 +448,7 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ scenario: sc, site, metrics: m, power: p }) => (
+          {rows.map(({ scenario: sc, site, metrics: m, power: p, contact: c }) => (
             <tr key={sc.id} className={sc.id === activeId ? 'is-selected' : ''} onClick={() => onActivate(sc.id)}>
               <th scope="row">
                 <button type="button" onClick={() => onActivate(sc.id)} aria-current={sc.id === activeId}>
@@ -443,6 +474,11 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
               <td className={`num ${m ? mark(m.earthShare === best.earth) : ''}`}>{m ? pct(m.earthShare) : '—'}</td>
               <td className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
               <td className={`num score-cell ${m ? mark(m.score === best.score) : ''}`}>{m ? m.score : '—'}</td>
+              {withContact && (
+                <td data-level="expert" className={`num contact-cell ${c ? mark(c.contactHoursPerDay === best.contact) : ''}`}>
+                  {c ? `${c.contactHoursPerDay.toFixed(1)} ${tr('h/día', 'h/day')}` : '—'}
+                </td>
+              )}
               <td data-level="expert" className={`num battery-cell ${p ? mark(p.minBatteryWh === best.battery) : ''}`}>
                 {p ? (
                   <>

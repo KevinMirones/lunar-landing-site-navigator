@@ -11,7 +11,7 @@
 
 ## Specs
 
-16 specs: 7 pendientes, 2 en curso, 7 hechas, 0 recortadas.
+16 specs: 6 pendientes, 2 en curso, 8 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
@@ -23,7 +23,7 @@
 | S06 | [Terreno multirresolución](specs/S06-terreno-multirresolucion.md)<br>Horizonte calculado con celdas de 20 a 80 m cerca del sitio, en lugar de 240 m. | 3 | imprescindible | hecha | — |
 | S07 | [Validación científica y coordenadas oficiales](specs/S07-validacion-y-coordenadas.md)<br>Tabla que compara nuestros resultados con los publicados, y cada sitio con su fuente. | 3 | imprescindible | hecha | [S06](specs/S06-terreno-multirresolucion.md) |
 | S08 | [Modelo de energía y batería](specs/S08-energia-y-bateria.md)<br>Potencia, energía diaria y batería necesaria para sobrevivir la noche más larga. | 4 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
-| S09 | [Ventanas de contacto reales](specs/S09-ventanas-de-contacto.md)<br>Enlace con margen de elevación y con las estaciones de tierra que ven la Luna en cada momento. | 4 | imprescindible | pendiente | [S01](specs/S01-escenarios.md) |
+| S09 | [Ventanas de contacto reales](specs/S09-ventanas-de-contacto.md)<br>Enlace con margen de elevación y con las estaciones de tierra que ven la Luna en cada momento. | 4 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S10 | [Exportación de ventanas e informe](specs/S10-exportacion.md)<br>Descargar las ventanas en CSV e imprimir un informe de una página con la comparación. | 4 | recortable | pendiente | [S01](specs/S01-escenarios.md), [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md) |
 | S11 | [Vista 3D del terreno](specs/S11-vista-3d.md)<br>Ver el paisaje real alrededor del sitio, con sus sombras y el Sol y la Tierra en el cielo. | 5 | recortable | pendiente | [S06](specs/S06-terreno-multirresolucion.md) |
 | S12 | [Modo educativo](specs/S12-modo-educativo.md)<br>Un recorrido guiado de cinco pasos, un glosario y una vista sencilla para quien no es especialista. | 5 | imprescindible | pendiente | [S01](specs/S01-escenarios.md) |

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { stripLayout } from '../lib/scenario';
 import { horizonAt, type Horizon, type Interval, type Metrics, type SiteSeries } from '../lib/series';
+import type { CommsResult } from '../lib/comms';
 import type { PowerResult } from '../lib/power';
 import { deg, fmtDate, fmtDuration, useLang, useSize, useTr } from '../lib/util';
 
@@ -12,6 +13,8 @@ interface Props {
   metrics: Metrics;
   /** Generation along the mission (S08); adds a third row when present. */
   power?: PowerResult | null;
+  /** Contact with the ground network (S09); adds a row when present. */
+  contact?: CommsResult | null;
   now: number;
   onScrub: (t: number) => void;
 }
@@ -36,7 +39,7 @@ const BAND_H = 12;
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 
-export function Timeline({ series, horizon, metrics, power, now, onScrub }: Props) {
+export function Timeline({ series, horizon, metrics, power, contact, now, onScrub }: Props) {
   const tr = useTr();
   const lang = useLang();
   const [ref, size] = useSize<HTMLDivElement>();
@@ -78,7 +81,11 @@ export function Timeline({ series, horizon, metrics, power, now, onScrub }: Prop
   for (let t = firstDay; t <= t1; t += DAY * tickEvery) ticks.push(t);
 
   const bandTop = PAD.t + PLOT_H + 12;
-  const bands = power ? 3 : 2;
+  // Rows below the plot: sunlight, link, then contact (S09) and power (S08) when present.
+  const contactRow = contact ? 2 : -1;
+  const powerRow = power ? (contact ? 3 : 2) : -1;
+  const bands = 2 + (contact ? 1 : 0) + (power ? 1 : 0);
+  const rowY = (row: number) => bandTop + row * (BAND_H + 6);
   const runs = useMemo(() => (power ? powerRuns(power) : []), [power]);
   const band = (ivs: Interval[], row: number, cls: string) =>
     ivs.map((iv, i) => (
@@ -160,18 +167,43 @@ export function Timeline({ series, horizon, metrics, power, now, onScrub }: Prop
           <text className="tl-axis" x={PAD.l - 8} y={bandTop + BAND_H + 16} textAnchor="end">
             {tr('Enlace', 'Link')}
           </text>
+          {contact && (
+            <g className="tl-contact">
+              <rect className="band-track" x={PAD.l} width={iw} y={rowY(contactRow)} height={BAND_H} rx="2" />
+              {contact.byStation.map((st, k) =>
+                st.intervals.map((iv) => {
+                  const w = x(iv.end) - x(iv.start);
+                  return (
+                    <g key={`${st.short}${iv.start}`}>
+                      <rect className={`band contact c${k}`} x={x(iv.start)} width={Math.max(1, w)} y={rowY(contactRow)} height={BAND_H} rx="2">
+                        <title>{st.name === 'own' ? tr('Estación propia', 'Own station') : st.name}</title>
+                      </rect>
+                      {w > 14 && (
+                        <text className="tl-station" x={x(iv.start) + w / 2} y={rowY(contactRow) + 9.5} textAnchor="middle">
+                          {st.short}
+                        </text>
+                      )}
+                    </g>
+                  );
+                }),
+              )}
+              <text className="tl-axis" x={PAD.l - 8} y={rowY(contactRow) + 10} textAnchor="end">
+                {tr('Contacto', 'Contact')}
+              </text>
+            </g>
+          )}
           {power && (
             <g className="tl-power">
-              <rect className="band-track" x={PAD.l} width={iw} y={bandTop + 2 * (BAND_H + 6)} height={BAND_H} rx="2" />
+              <rect className="band-track" x={PAD.l} width={iw} y={rowY(powerRow)} height={BAND_H} rx="2" />
               {runs.map((r) => (
-                <rect key={r.start} className={`band power p${r.level}`} x={x(r.start)} width={Math.max(1, x(r.end) - x(r.start))} y={bandTop + 2 * (BAND_H + 6)} height={BAND_H} />
+                <rect key={r.start} className={`band power p${r.level}`} x={x(r.start)} width={Math.max(1, x(r.end) - x(r.start))} y={rowY(powerRow)} height={BAND_H} />
               ))}
               {power.eclipses.map((e) => (
-                <rect key={e.start} className="band eclipse" x={x(e.start) - 2} width={Math.max(4, x(e.end) - x(e.start) + 4)} y={bandTop + 2 * (BAND_H + 6) - 3} height={BAND_H + 6} rx="2">
+                <rect key={e.start} className="band eclipse" x={x(e.start) - 2} width={Math.max(4, x(e.end) - x(e.start) + 4)} y={rowY(powerRow) - 3} height={BAND_H + 6} rx="2">
                   <title>{tr(`La Tierra tapa el Sol: ${Math.round(e.maxCover * 100)}%, ${fmtDuration(e.end - e.start)}`, `Earth covers the Sun: ${Math.round(e.maxCover * 100)}%, ${fmtDuration(e.end - e.start)}`)}</title>
                 </rect>
               ))}
-              <text className="tl-axis" x={PAD.l - 8} y={bandTop + 2 * (BAND_H + 6) + 10} textAnchor="end">
+              <text className="tl-axis" x={PAD.l - 8} y={rowY(powerRow) + 10} textAnchor="end">
                 {tr('Potencia', 'Power')}
               </text>
             </g>
