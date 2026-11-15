@@ -11,6 +11,7 @@ import {
   gridFor,
   maxSpanMs,
   removeScenario,
+  removeSiteScenarios,
   updateScenario,
   type Scenario,
   type ScenarioAnalysis,
@@ -332,6 +333,14 @@ export default function App() {
     },
     [scenarios, active.id],
   );
+  const uncompareSite = useCallback(
+    (siteId: string) => {
+      const next = removeSiteScenarios(scenarios, siteId, active.id);
+      setScenarios(next.list);
+      setActiveId(next.activeId);
+    },
+    [scenarios, active.id],
+  );
   const activate = useCallback(
     (id: string) => {
       setActiveId(id);
@@ -629,7 +638,7 @@ export default function App() {
                 <SectionToggle open={panels.sites} controls="drawer-sites" label={tr('los sitios', 'the sites')} dir={sitesStacked ? 'up' : 'left'} onToggle={() => togglePanel('sites')} />
               </div>
               <Collapse id="sites-fold" open={panels.sites || !sitesStacked}>
-                <SiteList sites={sites} activeSiteId={site.id} inUse={inUse} canAdd={canAdd} onSelect={selectSite} onCompare={compareSite} onAdd={addSite} onRemove={removeSite} />
+                <SiteList sites={sites} activeSiteId={site.id} inUse={inUse} canAdd={canAdd} onSelect={selectSite} onCompare={compareSite} onUncompare={uncompareSite} onAdd={addSite} onRemove={removeSite} />
               </Collapse>
             </div>
             <button type="button" className="drawer-rail" aria-expanded={panels.sites} aria-controls="drawer-sites" aria-label={tr('Mostrar los sitios', 'Show the sites')} title={tr('Mostrar los sitios', 'Show the sites')} onClick={() => togglePanel('sites')}>

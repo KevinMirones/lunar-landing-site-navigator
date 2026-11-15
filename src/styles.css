@@ -2128,3 +2128,34 @@ button.toggle.focus[aria-pressed='true'] {
     min-width: 0;
   }
 }
+
+/* ---------- map framing and taking a site out of the comparison ---------- */
+.polar-zoom button:disabled {
+  color: var(--dust-3);
+  opacity: 0.45;
+  cursor: default;
+}
+.polar-zoom button:disabled:hover {
+  background: none;
+}
+.pin-group {
+  flex: none;
+  display: inline-flex;
+}
+.pin-group .pin:has(+ .pin-out) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pin-out {
+  margin-left: 1px;
+  padding: 0 8px 0 7px;
+  font-size: 13px;
+  line-height: 1;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pin.is-on.pin-out:hover:not(:disabled) {
+  color: var(--chassis);
+  background: var(--dust);
+  border-color: var(--dust);
+}

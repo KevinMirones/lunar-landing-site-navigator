@@ -23,12 +23,16 @@ interface SiteListProps {
   canAdd: boolean;
   onSelect: (id: string) => void;
   onCompare: (id: string) => void;
+  /** Takes the site out of the comparison: removes its scenarios. */
+  onUncompare: (id: string) => void;
   onAdd: (lat: number, lon: number) => void;
   onRemove: (id: string) => void;
 }
 
-export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, canAdd, onSelect, onCompare, onAdd, onRemove }: SiteListProps) {
+export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, canAdd, onSelect, onCompare, onUncompare, onAdd, onRemove }: SiteListProps) {
   const tr = useTr();
+  // One scenario always stays, so the last site in the comparison cannot be taken out.
+  const onlySite = new Set(inUse).size <= 1;
   const lang = useLang();
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
@@ -83,20 +87,40 @@ export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, can
                       <span className="site-meta">{s.tag[lang]}</span>
                       <span className="site-meta num">{fmtLatLon(s.lat, s.lon)}</span>
                     </button>
-                    <button
-                      type="button"
-                      className={`pin${count ? ' is-on' : ''}`}
-                      disabled={!canAdd}
-                      title={
-                        canAdd
-                          ? tr('Añadir un escenario con este sitio', 'Add a scenario with this site')
-                          : tr('Hay seis escenarios, el máximo. Elimina uno para añadir otro.', 'There are six scenarios, the maximum. Remove one to add another.')
-                      }
-                      onClick={() => onCompare(s.id)}
-                    >
-                      {tr('Comparar', 'Compare')}
-                      {count > 0 && ` (${count})`}
-                    </button>
+                    <span className="pin-group">
+                      <button
+                        type="button"
+                        className={`pin${count ? ' is-on' : ''}`}
+                        disabled={!canAdd}
+                        title={
+                          canAdd
+                            ? tr('Añadir un escenario con este sitio', 'Add a scenario with this site')
+                            : tr('Hay seis escenarios, el máximo. Quita uno para añadir otro.', 'There are six scenarios, the maximum. Remove one to add another.')
+                        }
+                        onClick={() => onCompare(s.id)}
+                      >
+                        {tr('Comparar', 'Compare')}
+                        {count > 0 && ` (${count})`}
+                      </button>
+                      {count > 0 && (
+                        <button
+                          type="button"
+                          className="pin is-on pin-out"
+                          disabled={onlySite}
+                          aria-label={tr(`Quitar ${s.name} de la comparación`, `Take ${s.name} out of the comparison`)}
+                          title={
+                            onlySite
+                              ? tr('Es el único sitio de la comparación. Añade otro para poder quitarlo.', 'It is the only site in the comparison. Add another to take it out.')
+                              : count > 1
+                                ? tr(`Quitar sus ${count} escenarios de la comparación`, `Remove its ${count} scenarios from the comparison`)
+                                : tr('Quitar de la comparación', 'Take out of the comparison')
+                          }
+                          onClick={() => onUncompare(s.id)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
                     {s.group === 'custom' && (
                       <button type="button" className="pin" title={tr('Eliminar punto', 'Delete point')} onClick={() => onRemove(s.id)}>
                         ×

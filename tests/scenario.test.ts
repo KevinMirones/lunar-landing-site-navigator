@@ -8,6 +8,7 @@ import {
   gridFor,
   maxSpanMs,
   removeScenario,
+  removeSiteScenarios,
   stripLayout,
   updateScenario,
   type Scenario,
@@ -75,6 +76,33 @@ describe('removing a scenario', () => {
   it('never removes the last scenario', () => {
     const only = [base()];
     expect(removeScenario(only, 'e1', 'e1')).toEqual({ list: only, activeId: 'e1' });
+  });
+});
+
+describe('taking a site out of the comparison', () => {
+  // ridge twice (two dates), then malapert, then im2
+  const list = [base({ id: 'e1' }), base({ id: 'e2', siteId: 'malapert' }), base({ id: 'e3' }), base({ id: 'e4', siteId: 'im2' })];
+
+  it('removes every scenario at that site and keeps the rest in order', () => {
+    expect(removeSiteScenarios(list, 'ridge', 'e2')).toEqual({ list: [list[1], list[3]], activeId: 'e2' });
+  });
+
+  it('activates the closest scenario before the active one when the active one goes', () => {
+    expect(removeSiteScenarios(list, 'ridge', 'e3')).toMatchObject({ activeId: 'e2' });
+    expect(removeSiteScenarios(list, 'im2', 'e4')).toMatchObject({ activeId: 'e3' });
+  });
+
+  it('activates the first one left when nothing was before the active one', () => {
+    expect(removeSiteScenarios(list, 'ridge', 'e1')).toMatchObject({ activeId: 'e2' });
+  });
+
+  it('changes nothing when the site is the only one in the comparison', () => {
+    const one = [base({ id: 'e1' }), base({ id: 'e2' })];
+    expect(removeSiteScenarios(one, 'ridge', 'e2')).toEqual({ list: one, activeId: 'e2' });
+  });
+
+  it('changes nothing for a site that has no scenario', () => {
+    expect(removeSiteScenarios(list, 'shackleton-floor', 'e1')).toEqual({ list, activeId: 'e1' });
   });
 });
 

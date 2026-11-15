@@ -3,6 +3,7 @@
 // curvature of the Moon, so the map shows which ground can see the body right now.
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEG, MOON_RADIUS_KM, type Vec3 } from '../lib/ephemeris';
+import { MIN_HALF_KM, clampView, fullView, type MapView } from '../lib/mapView';
 import { MAX_LANDING_SLOPE_DEG, heatRange, valueOf, type Criterion, type SearchCell, type SearchResult } from '../lib/search';
 import type { Site } from '../lib/sites';
 import { fmtLatLon, pct, useSize, useTr, type Heightmap } from '../lib/util';
@@ -91,12 +92,6 @@ export interface Heat {
 
 const HEAT_RGB: Record<Criterion, string> = { sun: '255,194,71', earth: '93,184,255', score: '236,231,219' };
 
-interface View {
-  cx: number;
-  cy: number;
-  half: number;
-}
-
 const toXY = (lat: number, lon: number): [number, number] => {
   const rho = 2 * MOON_RADIUS_KM * Math.tan(((90 + lat) * DEG) / 2);
   return [rho * Math.sin(lon * DEG), rho * Math.cos(lon * DEG)];
@@ -115,7 +110,12 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
   const [wrapRef, size] = useSize<HTMLDivElement>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<{ gl: WebGL2RenderingContext; u: Record<string, WebGLUniformLocation | null> } | null>(null);
-  const [view, setView] = useState<View>({ cx: 0, cy: 0, half: 250 });
+  // The stored view is what the user asked for; the drawn view is that, kept on the map for
+  // the current frame size (a resize or focus mode can change what fits).
+  const extent = hm.halfExtentKm;
+  const [wanted, setView] = useState<MapView>(() => fullView(extent));
+  const fit = (v: MapView) => clampView(v, extent, size.w, size.h);
+  const view = useMemo(() => clampView(wanted, extent, size.w, size.h), [wanted, extent, size.w, size.h]);
   const [hover, setHover] = useState<{ lat: number; lon: number; h: number } | null>(null);
   const [failed, setFailed] = useState(false);
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null);
@@ -228,12 +228,17 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
     if (quality) p.idle = window.setTimeout(() => setQuality(0), 1500); // a pause, not a slow frame
   }, [hm, view, size, sunDir, earthDir, mode, halfX, halfY, quality]);
 
-  // Bring the selected site into view when it changes.
+  // Bring the selected site into view when it changes and is outside the frame.
+  // With the whole map shown, every site is already in view and nothing moves.
   const selected = sites.find((s) => s.id === selectedId);
   useEffect(() => {
     if (!selected || selected.lat > -79.5) return;
     const [x, y] = toXY(selected.lat, selected.lon);
-    setView((v) => (Math.abs(x - v.cx) < v.half * 0.85 && Math.abs(y - v.cy) < v.half * 0.85 ? v : { ...v, cx: x, cy: y }));
+    setView((raw) => {
+      const v = fit(raw);
+      const inside = Math.abs(x - v.cx) < halfX * 0.85 && Math.abs(y - v.cy) < halfY * 0.85;
+      return inside ? v : fit({ ...v, cx: x, cy: y });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
@@ -242,7 +247,7 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
   useEffect(() => {
     if (!heat) return;
     const [x, y] = toXY(heat.result.center.lat, heat.result.center.lon);
-    setView({ cx: x, cy: y, half: Math.max(8, heat.result.radiusKm * 1.9) });
+    setView(fit({ cx: x, cy: y, half: heat.result.radiusKm * 1.9 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heatArea]);
 
@@ -252,31 +257,35 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
     view.cx + ((px - size.w / 2) / (size.w / 2)) * halfX,
     view.cy - ((py - size.h / 2) / (size.h / 2)) * halfY,
   ];
-  const clampView = (v: View): View => {
-    const half = Math.min(320, Math.max(8, v.half));
-    const lim = hm.halfExtentKm;
-    return { half, cx: Math.min(lim, Math.max(-lim, v.cx)), cy: Math.min(lim, Math.max(-lim, v.cy)) };
-  };
+  // Zoom keeping the point under (px, py) in place; the edges of the map can shift it.
   const zoom = (factor: number, px = size.w / 2, py = size.h / 2) => {
     const [kx, ky] = kmAt(px, py);
-    setView((v) => {
-      const half = Math.min(320, Math.max(8, v.half * factor));
+    setView((raw) => {
+      const v = fit(raw);
+      const half = Math.min(extent, Math.max(MIN_HALF_KM, v.half * factor));
       const f = half / v.half;
-      return clampView({ half, cx: kx + (v.cx - kx) * f, cy: ky + (v.cy - ky) * f });
+      return fit({ half, cx: kx + (v.cx - kx) * f, cy: ky + (v.cy - ky) * f });
     });
   };
+  const showAll = () => setView(fullView(extent));
+  const canZoomIn = view.half > MIN_HALF_KM;
+  const canZoomOut = view.half < extent;
 
   // Keyboard (S14): arrows move a tenth of the view, + and − zoom, 0 shows the whole pole.
   const onKeyDown = (e: React.KeyboardEvent) => {
     const step = 0.1;
-    const pan = (dx: number, dy: number) => setView((v) => clampView({ ...v, cx: v.cx + dx * v.half, cy: v.cy + dy * v.half }));
+    const pan = (dx: number, dy: number) =>
+      setView((raw) => {
+        const v = fit(raw);
+        return fit({ ...v, cx: v.cx + dx * v.half, cy: v.cy + dy * v.half });
+      });
     if (e.key === 'ArrowLeft') pan(-step, 0);
     else if (e.key === 'ArrowRight') pan(step, 0);
     else if (e.key === 'ArrowUp') pan(0, step);
     else if (e.key === 'ArrowDown') pan(0, -step);
     else if (e.key === '+' || e.key === '=') zoom(1 / 1.5);
     else if (e.key === '-' || e.key === '_') zoom(1.5);
-    else if (e.key === '0') setView({ cx: 0, cy: 0, half: 250 });
+    else if (e.key === '0') showAll();
     else return;
     e.preventDefault();
   };
@@ -289,6 +298,9 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    // The zoom buttons sit on the map. Capturing the pointer here would send their click to
+    // the map instead, so they did nothing and the click evaluated the point under them.
+    if ((e.target as Element).closest('button')) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false };
   };
@@ -300,7 +312,7 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
       const dy = e.clientY - d.y;
       if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
       if (d.moved) {
-        setView((v) => clampView({ ...v, cx: d.cx - (dx / (size.w / 2)) * halfX, cy: d.cy + (dy / (size.h / 2)) * halfY }));
+        setView((v) => fit({ ...v, cx: d.cx - (dx / (size.w / 2)) * halfX, cy: d.cy + (dy / (size.h / 2)) * halfY }));
       }
       return;
     }
@@ -436,13 +448,13 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
       {heat && <HeatLegend heat={heat} />}
 
       <div className="polar-zoom">
-        <button type="button" onClick={() => zoom(1 / 1.5)} aria-label={tr('Acercar', 'Zoom in')}>
+        <button type="button" onClick={() => zoom(1 / 1.5)} disabled={!canZoomIn} aria-label={tr('Acercar', 'Zoom in')} title={tr('Acercar', 'Zoom in')}>
           +
         </button>
-        <button type="button" onClick={() => zoom(1.5)} aria-label={tr('Alejar', 'Zoom out')}>
+        <button type="button" onClick={() => zoom(1.5)} disabled={!canZoomOut} aria-label={tr('Alejar', 'Zoom out')} title={tr('Alejar', 'Zoom out')}>
           −
         </button>
-        <button type="button" onClick={() => setView({ cx: 0, cy: 0, half: 250 })} aria-label={tr('Ver todo el polo', 'Show the whole pole')}>
+        <button type="button" onClick={showAll} disabled={!canZoomOut} aria-label={tr('Ver todo el polo', 'Show the whole pole')} title={tr('Ver todo el polo', 'Show the whole pole')}>
           ⌂
         </button>
       </div>

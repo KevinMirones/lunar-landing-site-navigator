@@ -38,6 +38,7 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-15 | [El mapa polar se queda en sus datos y la lista saca sitios de la comparación](historial/2026-11-15-15-mapa-y-comparar.md)<br>Al probar la versión integrada se vio que los botones de zoom del mapa no hacían nada, que el mapa se podía arrastrar fuera de sus datos y que no había forma clara de sacar un sitio de la comparación. Corregido. | incidencia |
 | 2026-11-15 | [Specs S08 a S16 implementadas, salvo S11](historial/2026-11-15-14-specs-s08-a-s16.md)<br>Energía, contacto, exportación, modo educativo, catálogo, sombra permanente, robustez y pruebas de navegador, en ramas apiladas. | hito |
 | 2026-11-15 | [La vista 3D se abre desde el panorama](historial/2026-11-15-13-vista-3d.md)<br>S11 pasa de una pestaña del mapa a una vista en primera persona a pantalla completa, con el relieve real y el Sol y la Tierra en movimiento. Fase 1 implementada. | decisión |
 | 2026-11-14 | [Todas las specs pendientes, listas para implementar](historial/2026-11-14-12-specs-completas-y-plan.md)<br>S03 y S08 a S14 revisadas contra el código real, dos specs nuevas (S15 y S16) y un plan con orden, reparto y reglas. | decisión |

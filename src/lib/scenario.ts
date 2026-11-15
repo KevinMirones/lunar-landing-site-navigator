@@ -49,6 +49,19 @@ export function removeScenario(list: Scenario[], id: string, activeId: string): 
   return { list: next, activeId: id === activeId ? next[Math.max(0, index - 1)].id : activeId };
 }
 
+/**
+ * Takes a site out of the comparison: removes every scenario at that site. Nothing changes when
+ * no other site has a scenario, since one always stays. If the active scenario goes, the
+ * closest one before it in the list becomes active, or the first one left when none is before it.
+ */
+export function removeSiteScenarios(list: Scenario[], siteId: string, activeId: string): { list: Scenario[]; activeId: string } {
+  const next = list.filter((s) => s.siteId !== siteId);
+  if (!next.length || next.length === list.length) return { list, activeId };
+  if (next.some((s) => s.id === activeId)) return { list: next, activeId };
+  const before = list.slice(0, list.findIndex((s) => s.id === activeId)).filter((s) => s.siteId !== siteId);
+  return { list: next, activeId: (before.at(-1) ?? next[0]).id };
+}
+
 export function updateScenario(list: Scenario[], id: string, patch: Partial<Omit<Scenario, 'id'>>): Scenario[] {
   return list.map((s) => (s.id === id ? { ...s, ...patch } : s));
 }
