@@ -124,6 +124,39 @@ export async function fetchJpl(lat: number, lon: number, t: number): Promise<Jpl
 }
 
 // ---------- hooks ----------
+/** Tracks a CSS media query, e.g. the breakpoints in styles.css where side panels stack. */
+export function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const update = () => setMatches(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, [query]);
+  return matches;
+}
+
+/** useState remembered in this browser. If storage is blocked, it only forgets on reload. */
+export function useStoredState<T extends object>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? { ...initial, ...JSON.parse(raw) } : initial;
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Private mode or full storage: keep working without persistence.
+    }
+  }, [key, value]);
+  return [value, setValue];
+}
+
 export function useSize<T extends HTMLElement>(): [React.RefObject<T | null>, { w: number; h: number }] {
   const ref = useRef<T>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });

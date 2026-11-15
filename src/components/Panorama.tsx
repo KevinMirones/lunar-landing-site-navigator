@@ -103,7 +103,7 @@ export function Panorama({ horizon, sky, series }: Props) {
     const r = kind === 'sun' ? 6 : 7;
     const below = cy > PAD.t + ih - 4;
     const labelY = below ? PAD.t + ih - 8 : Math.max(PAD.t + 12, cy - r - 8);
-    const anchor = cx > PAD.l + iw - 90 ? 'end' : 'start';
+    const anchor = cx > PAD.l + iw - 160 ? 'end' : 'start'; // room for "Tierra −3.9° (oculto)"
     return { visible, cx, cy: Math.min(cy, PAD.t + ih + 20), r, labelY, anchor, label, below };
   };
   const sun = body(sky.sun, 'sun', tr('Sol', 'Sun'));
