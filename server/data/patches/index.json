@@ -214,5 +214,455 @@
   "vertices": 257,
   "resolutionM": 80,
   "file": "im1-64km.bin"
+ },
+ {
+  "site": "chandrayaan3",
+  "lat": -69.373,
+  "lon": 32.319,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "chandrayaan3-8km.bin"
+ },
+ {
+  "site": "chandrayaan3",
+  "lat": -69.373,
+  "lon": 32.319,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "chandrayaan3-64km.bin"
+ },
+ {
+  "site": "apollo11",
+  "lat": 0.67416,
+  "lon": 23.47314,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo11-8km.bin"
+ },
+ {
+  "site": "apollo11",
+  "lat": 0.67416,
+  "lon": 23.47314,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo11-64km.bin"
+ },
+ {
+  "site": "apollo17",
+  "lat": 20.1911,
+  "lon": 30.7723,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo17-8km.bin"
+ },
+ {
+  "site": "apollo17",
+  "lat": 20.1911,
+  "lon": 30.7723,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo17-64km.bin"
+ },
+ {
+  "site": "blueghost",
+  "lat": 18.56,
+  "lon": 61.81,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "blueghost-8km.bin"
+ },
+ {
+  "site": "blueghost",
+  "lat": 18.56,
+  "lon": 61.81,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "blueghost-64km.bin"
+ },
+ {
+  "site": "slim",
+  "lat": -13.316,
+  "lon": 25.251,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "slim-8km.bin"
+ },
+ {
+  "site": "slim",
+  "lat": -13.316,
+  "lon": 25.251,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "slim-64km.bin"
+ },
+ {
+  "site": "change4",
+  "lat": -45.4446,
+  "lon": 177.5991,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change4-8km.bin"
+ },
+ {
+  "site": "change4",
+  "lat": -45.4446,
+  "lon": 177.5991,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change4-64km.bin"
+ },
+ {
+  "site": "apollo12",
+  "lat": -3.0124,
+  "lon": -23.4216,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo12-8km.bin"
+ },
+ {
+  "site": "apollo12",
+  "lat": -3.0124,
+  "lon": -23.4216,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo12-64km.bin"
+ },
+ {
+  "site": "apollo14",
+  "lat": -3.6453,
+  "lon": -17.4714,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo14-8km.bin"
+ },
+ {
+  "site": "apollo14",
+  "lat": -3.6453,
+  "lon": -17.4714,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo14-64km.bin"
+ },
+ {
+  "site": "apollo15",
+  "lat": 26.1322,
+  "lon": 3.6339,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo15-8km.bin"
+ },
+ {
+  "site": "apollo15",
+  "lat": 26.1322,
+  "lon": 3.6339,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo15-64km.bin"
+ },
+ {
+  "site": "apollo16",
+  "lat": -8.973,
+  "lon": 15.5002,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo16-8km.bin"
+ },
+ {
+  "site": "apollo16",
+  "lat": -8.973,
+  "lon": 15.5002,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "apollo16-64km.bin"
+ },
+ {
+  "site": "luna9",
+  "lat": 7.08,
+  "lon": -64.37,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna9-8km.bin"
+ },
+ {
+  "site": "luna9",
+  "lat": 7.08,
+  "lon": -64.37,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna9-64km.bin"
+ },
+ {
+  "site": "luna13",
+  "lat": 18.87,
+  "lon": -62.05,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna13-8km.bin"
+ },
+ {
+  "site": "luna13",
+  "lat": 18.87,
+  "lon": -62.05,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna13-64km.bin"
+ },
+ {
+  "site": "luna16",
+  "lat": -0.68,
+  "lon": 56.3,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna16-8km.bin"
+ },
+ {
+  "site": "luna16",
+  "lat": -0.68,
+  "lon": 56.3,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna16-64km.bin"
+ },
+ {
+  "site": "luna17",
+  "lat": 38.28,
+  "lon": -35,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna17-8km.bin"
+ },
+ {
+  "site": "luna17",
+  "lat": 38.28,
+  "lon": -35,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna17-64km.bin"
+ },
+ {
+  "site": "luna20",
+  "lat": 3.57,
+  "lon": 56.5,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna20-8km.bin"
+ },
+ {
+  "site": "luna20",
+  "lat": 3.57,
+  "lon": 56.5,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna20-64km.bin"
+ },
+ {
+  "site": "luna21",
+  "lat": 25.85,
+  "lon": 30.45,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna21-8km.bin"
+ },
+ {
+  "site": "luna21",
+  "lat": 25.85,
+  "lon": 30.45,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna21-64km.bin"
+ },
+ {
+  "site": "luna24",
+  "lat": 12.75,
+  "lon": 62.2,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna24-8km.bin"
+ },
+ {
+  "site": "luna24",
+  "lat": 12.75,
+  "lon": 62.2,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "luna24-64km.bin"
+ },
+ {
+  "site": "surveyor1",
+  "lat": -2.474,
+  "lon": -43.339,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor1-8km.bin"
+ },
+ {
+  "site": "surveyor1",
+  "lat": -2.474,
+  "lon": -43.339,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor1-64km.bin"
+ },
+ {
+  "site": "surveyor3",
+  "lat": -3.015,
+  "lon": -23.418,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor3-8km.bin"
+ },
+ {
+  "site": "surveyor3",
+  "lat": -3.015,
+  "lon": -23.418,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor3-64km.bin"
+ },
+ {
+  "site": "surveyor5",
+  "lat": 1.461,
+  "lon": 23.195,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor5-8km.bin"
+ },
+ {
+  "site": "surveyor5",
+  "lat": 1.461,
+  "lon": 23.195,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor5-64km.bin"
+ },
+ {
+  "site": "surveyor6",
+  "lat": 0.4743,
+  "lon": -1.4275,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor6-8km.bin"
+ },
+ {
+  "site": "surveyor6",
+  "lat": 0.4743,
+  "lon": -1.4275,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor6-64km.bin"
+ },
+ {
+  "site": "surveyor7",
+  "lat": -40.98,
+  "lon": -11.514,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor7-8km.bin"
+ },
+ {
+  "site": "surveyor7",
+  "lat": -40.98,
+  "lon": -11.514,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "surveyor7-64km.bin"
+ },
+ {
+  "site": "change3",
+  "lat": 44.12,
+  "lon": -19.51,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change3-8km.bin"
+ },
+ {
+  "site": "change3",
+  "lat": 44.12,
+  "lon": -19.51,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change3-64km.bin"
+ },
+ {
+  "site": "change5",
+  "lat": 43.0576,
+  "lon": -51.9161,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change5-8km.bin"
+ },
+ {
+  "site": "change5",
+  "lat": 43.0576,
+  "lon": -51.9161,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change5-64km.bin"
+ },
+ {
+  "site": "change6",
+  "lat": -41.6385,
+  "lon": -153.9852,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change6-8km.bin"
+ },
+ {
+  "site": "change6",
+  "lat": -41.6385,
+  "lon": -153.9852,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 474,
+  "file": "change6-64km.bin"
  }
 ]
