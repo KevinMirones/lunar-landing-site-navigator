@@ -18,19 +18,24 @@ import { fetchSearch, rankCells, type Criterion, type SearchCell, type SearchRes
 import { bestDates, dailyShares, frameSeries, siteSeries, skyAt, windowScores, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
 import { decode, encode, fromShared, toShared } from './lib/urlState';
-import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, type Heightmap } from './lib/util';
+import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, useMedia, useStoredState, type Heightmap } from './lib/util';
+import { Chevron, Collapse, FocusIcon, SectionToggle } from './components/Collapse';
 import { Globe } from './components/Globe';
 import { BestDates, Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
 import { PolarMap } from './components/PolarMap';
 import { SearchControls, SearchResults, whereFrom, type SearchStatus } from './components/Search';
 import { Timeline } from './components/Timeline';
+import { Wordmark } from './components/Wordmark';
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 const SPEEDS = [0.5, 2, 6]; // mission days per second
 const FALLBACK_SITE = CATALOG[0];
 const CALENDAR_DAYS = 366;
+// Which panels are open. Purely visual: closing one never stops its computations.
+const PANELS = { sites: true, status: true, hero: true, when: true, compare: true, calendar: true };
+type Panel = keyof typeof PANELS;
 
 type LoadedHorizon = Horizon & { offline?: boolean };
 
@@ -102,6 +107,12 @@ export default function App() {
   const [mapMode, setMapMode] = useState<'sun' | 'earth'>(boot.mode);
   const [linkDamaged, setLinkDamaged] = useState(boot.damaged);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
+  const [panels, setPanels] = useStoredState('lumina.panels', PANELS);
+  const togglePanel = (p: Panel) => setPanels((s) => ({ ...s, [p]: !s[p] }));
+  const sidesOpen = panels.sites || panels.status;
+  // Where a side panel stacks above or below the map, it folds up instead of sideways.
+  const sitesStacked = useMedia('(max-width: 760px)');
+  const statusStacked = useMedia('(max-width: 1240px)');
   const [heightmap, setHeightmap] = useState<Heightmap | null | 'loading'>('loading');
   const [horizons, setHorizons] = useState<Record<string, LoadedHorizon>>({});
   const inflight = useRef(new Set<string>());
@@ -394,7 +405,7 @@ export default function App() {
       <div className="app">
         <header className="topbar">
           <div className="brand">
-            <span className="wordmark">LUMINA</span>
+            <Wordmark />
             <span className="tagline">{tr('Luz y enlace para alunizar en el polo sur', 'Light and link for landing at the lunar south pole')}</span>
           </div>
           <div className="controls" role="group" aria-label={tr('Escenario activo', 'Active scenario')}>
@@ -467,17 +478,32 @@ export default function App() {
               {tr('El cielo desde', 'The sky from')} {site.name}
             </h1>
             <p className="num">{fmtDate(now, lang)}</p>
+            <SectionToggle open={panels.hero} controls="hero-body" label={tr('el panorama', 'the panorama')} onToggle={() => togglePanel('hero')} />
           </div>
-          {horizon && sky ? (
-            <Panorama horizon={horizon} sky={sky} series={current?.series ?? null} />
-          ) : (
-            <div className="panorama loading">{tr('Calculando el horizonte del terreno…', 'Computing the terrain horizon…')}</div>
-          )}
+          <Collapse id="hero-body" open={panels.hero}>
+            {horizon && sky ? (
+              <Panorama horizon={horizon} sky={sky} series={current?.series ?? null} />
+            ) : (
+              <div className="panorama loading">{tr('Calculando el horizonte del terreno…', 'Computing the terrain horizon…')}</div>
+            )}
+          </Collapse>
         </section>
 
-        <div className="workspace">
-          <aside className="col-sites">
-            <SiteList sites={sites} activeSiteId={site.id} inUse={inUse} canAdd={canAdd} onSelect={selectSite} onCompare={compareSite} onAdd={addSite} onRemove={removeSite} />
+        <div className={`workspace${panels.sites ? '' : ' sites-closed'}${panels.status ? '' : ' status-closed'}`}>
+          <aside className="col-sites drawer">
+            <div className="drawer-body" id="drawer-sites">
+              <div className="drawer-head">
+                <h2>{tr('Sitios', 'Sites')}</h2>
+                <SectionToggle open={panels.sites} controls="drawer-sites" label={tr('los sitios', 'the sites')} dir={sitesStacked ? 'up' : 'left'} onToggle={() => togglePanel('sites')} />
+              </div>
+              <Collapse id="sites-fold" open={panels.sites || !sitesStacked}>
+                <SiteList sites={sites} activeSiteId={site.id} inUse={inUse} canAdd={canAdd} onSelect={selectSite} onCompare={compareSite} onAdd={addSite} onRemove={removeSite} />
+              </Collapse>
+            </div>
+            <button type="button" className="drawer-rail" aria-expanded={panels.sites} aria-controls="drawer-sites" aria-label={tr('Mostrar los sitios', 'Show the sites')} title={tr('Mostrar los sitios', 'Show the sites')} onClick={() => togglePanel('sites')}>
+              <Chevron dir="right" />
+              <span className="rail-label">{tr('Sitios', 'Sites')}</span>
+            </button>
           </aside>
 
           <section className="col-map">
@@ -490,28 +516,40 @@ export default function App() {
                   {tr('Globo', 'Globe')}
                 </button>
               </div>
-              {mapView === 'polar' && (
+              <div className="map-tools">
+                {mapView === 'polar' && (
+                  <button
+                    type="button"
+                    className="search-toggle"
+                    aria-pressed={search.open}
+                    disabled={!searchable}
+                    title={searchable ? undefined : tr('El buscador necesita terreno real: solo funciona entre 80°S y 90°S.', 'The search needs real terrain: it only works between 80°S and 90°S.')}
+                    onClick={() => setSearch((s) => ({ ...s, open: !s.open }))}
+                  >
+                    {tr('Buscar el mejor punto cerca', 'Find the best point nearby')}
+                  </button>
+                )}
+                {mapView === 'polar' && (
+                  <div className="segmented" role="group" aria-label={tr('Capa', 'Layer')}>
+                    <button type="button" className="sun" aria-pressed={mapMode === 'sun'} onClick={() => setMapMode('sun')}>
+                      {tr('Dónde da el Sol', 'Where the Sun reaches')}
+                    </button>
+                    <button type="button" className="earth" aria-pressed={mapMode === 'earth'} onClick={() => setMapMode('earth')}>
+                      {tr('Dónde se ve la Tierra', 'Where Earth is visible')}
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
-                  className="search-toggle"
-                  aria-pressed={search.open}
-                  disabled={!searchable}
-                  title={searchable ? undefined : tr('El buscador necesita terreno real: solo funciona entre 80°S y 90°S.', 'The search needs real terrain: it only works between 80°S and 90°S.')}
-                  onClick={() => setSearch((s) => ({ ...s, open: !s.open }))}
+                  className="toggle focus"
+                  aria-pressed={!sidesOpen}
+                  aria-label={sidesOpen ? tr('Ampliar el mapa', 'Expand the map') : tr('Mostrar los paneles', 'Show the panels')}
+                  title={sidesOpen ? tr('Ampliar el mapa', 'Expand the map') : tr('Mostrar los paneles', 'Show the panels')}
+                  onClick={() => setPanels((s) => ({ ...s, sites: !sidesOpen, status: !sidesOpen }))}
                 >
-                  {tr('Buscar el mejor punto cerca', 'Find the best point nearby')}
+                  <FocusIcon expanded={!sidesOpen} />
                 </button>
-              )}
-              {mapView === 'polar' && (
-                <div className="segmented" role="group" aria-label={tr('Capa', 'Layer')}>
-                  <button type="button" className="sun" aria-pressed={mapMode === 'sun'} onClick={() => setMapMode('sun')}>
-                    {tr('Dónde da el Sol', 'Where the Sun reaches')}
-                  </button>
-                  <button type="button" className="earth" aria-pressed={mapMode === 'earth'} onClick={() => setMapMode('earth')}>
-                    {tr('Dónde se ve la Tierra', 'Where Earth is visible')}
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
             {mapView === 'polar' && search.open && searchable && (
               <SearchControls
@@ -540,12 +578,24 @@ export default function App() {
             {mapView === 'polar' && search.open && searchable && <SearchResults result={searchResult} picks={picks} canAdd={canAdd} onUse={useCell} onAdd={addCell} />}
           </section>
 
-          <aside className="col-status">
-            {horizon && sky && current ? (
-              <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} />
-            ) : (
-              <p className="empty">{tr('Calculando…', 'Computing…')}</p>
-            )}
+          <aside className="col-status drawer">
+            <div className="drawer-body" id="drawer-status">
+              <div className="drawer-head">
+                <h2>{tr('Estado del sitio', 'Site status')}</h2>
+                <SectionToggle open={panels.status} controls="drawer-status" label={tr('el estado del sitio', 'the site status')} dir={statusStacked ? 'up' : 'right'} onToggle={() => togglePanel('status')} />
+              </div>
+              <Collapse id="status-fold" open={panels.status || !statusStacked}>
+                {horizon && sky && current ? (
+                  <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} />
+                ) : (
+                  <p className="empty">{tr('Calculando…', 'Computing…')}</p>
+                )}
+              </Collapse>
+            </div>
+            <button type="button" className="drawer-rail" aria-expanded={panels.status} aria-controls="drawer-status" aria-label={tr('Mostrar el estado del sitio', 'Show the site status')} title={tr('Mostrar el estado del sitio', 'Show the site status')} onClick={() => togglePanel('status')}>
+              <Chevron dir="left" />
+              <span className="rail-label">{tr('Estado del sitio', 'Site status')}</span>
+            </button>
           </aside>
         </div>
 
@@ -567,43 +617,56 @@ export default function App() {
                 {tr('Volver al alunizaje', 'Back to landing')}
               </button>
             </div>
+            <SectionToggle open={panels.when} controls="when-body" label={tr('la línea de tiempo', 'the timeline')} onToggle={() => togglePanel('when')} />
           </div>
-          {current && horizon ? (
-            <Timeline series={current.series} horizon={horizon} metrics={current.metrics} now={now} onScrub={(t) => setElapsed(t - landing)} />
-          ) : (
-            <p className="empty">{tr('Calculando…', 'Computing…')}</p>
-          )}
+          <Collapse id="when-body" open={panels.when}>
+            {current && horizon ? (
+              <Timeline series={current.series} horizon={horizon} metrics={current.metrics} now={now} onScrub={(t) => setElapsed(t - landing)} />
+            ) : (
+              <p className="empty">{tr('Calculando…', 'Computing…')}</p>
+            )}
+          </Collapse>
         </section>
 
         <section className="lower">
           <div className="lower-block">
-            <h2>{tr('Comparar escenarios', 'Compare scenarios')}</h2>
-            <p className="lede">
-              {tr(
-                'Un escenario es un sitio con su fecha, duración y mástil. Compara sitios distintos o el mismo sitio en otra fecha: unos kilómetros o unos días lo cambian todo.',
-                'A scenario is a site with its date, duration and mast. Compare different sites or the same site on another date: a few kilometres or a few days change everything.',
-              )}
-            </p>
-            <Compare rows={rows} activeId={active.id} spanMs={span} elapsed={Math.min(elapsed, durationMs)} canAdd={canAdd} onActivate={activate} onDuplicate={duplicate} onRemove={remove} />
+            <div className="block-head">
+              <h2>{tr('Comparar escenarios', 'Compare scenarios')}</h2>
+              <SectionToggle open={panels.compare} controls="compare-body" label={tr('la comparación', 'the comparison')} onToggle={() => togglePanel('compare')} />
+            </div>
+            <Collapse id="compare-body" open={panels.compare}>
+              <p className="lede">
+                {tr(
+                  'Un escenario es un sitio con su fecha, duración y mástil. Compara sitios distintos o el mismo sitio en otra fecha: unos kilómetros o unos días lo cambian todo.',
+                  'A scenario is a site with its date, duration and mast. Compare different sites or the same site on another date: a few kilometres or a few days change everything.',
+                )}
+              </p>
+              <Compare rows={rows} activeId={active.id} spanMs={span} elapsed={Math.min(elapsed, durationMs)} canAdd={canAdd} onActivate={activate} onDuplicate={duplicate} onRemove={remove} />
+            </Collapse>
           </div>
           <div className="lower-block">
-            <h2>
-              {tr('Mejores fechas en', 'Best dates at')} {site.name}
-            </h2>
-            <p className="lede">
-              {tr(
-                `Doce meses, día a día. Cuanto más intenso el color, más horas de luz o de enlace. La tercera fila es el índice que tendría una misión de ${durationDays} días si aterrizara ese día; los triángulos marcan las mejores fechas.`,
-                `Twelve months, day by day. The stronger the colour, the more hours of light or link. The third row is the index a ${durationDays}-day mission would get if it landed that day; triangles mark the best dates.`,
+            <div className="block-head">
+              <h2>
+                {tr('Mejores fechas en', 'Best dates at')} {site.name}
+              </h2>
+              <SectionToggle open={panels.calendar} controls="calendar-body" label={tr('el calendario', 'the calendar')} onToggle={() => togglePanel('calendar')} />
+            </div>
+            <Collapse id="calendar-body" open={panels.calendar}>
+              <p className="lede">
+                {tr(
+                  `Doce meses, día a día. Cuanto más intenso el color, más horas de luz o de enlace. La tercera fila es el índice que tendría una misión de ${durationDays} días si aterrizara ese día; los triángulos marcan las mejores fechas.`,
+                  `Twelve months, day by day. The stronger the colour, the more hours of light or link. The third row is the index a ${durationDays}-day mission would get if it landed that day; triangles mark the best dates.`,
+                )}
+              </p>
+              {daily && scores ? (
+                <>
+                  <YearCalendar daily={daily} scores={scores} best={best} landing={landing} durationDays={durationDays} onPickDay={pickDay} />
+                  <BestDates scores={scores} best={best} requireSun={requireSun} canAdd={canAdd} onRequireSun={setRequireSun} onApply={changeLanding} onAdd={addOnDate} />
+                </>
+              ) : (
+                <p className="empty">{tr('Calculando…', 'Computing…')}</p>
               )}
-            </p>
-            {daily && scores ? (
-              <>
-                <YearCalendar daily={daily} scores={scores} best={best} landing={landing} durationDays={durationDays} onPickDay={pickDay} />
-                <BestDates scores={scores} best={best} requireSun={requireSun} canAdd={canAdd} onRequireSun={setRequireSun} onApply={changeLanding} onAdd={addOnDate} />
-              </>
-            ) : (
-              <p className="empty">{tr('Calculando…', 'Computing…')}</p>
-            )}
+            </Collapse>
           </div>
         </section>
 

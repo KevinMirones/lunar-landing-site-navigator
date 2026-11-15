@@ -13,6 +13,9 @@
   --earth: #5db8ff;
   --alert: #ff8a6b;
   --wide: 'wdth' 125;
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-fold: cubic-bezier(0.45, 0, 0.2, 1);
+  --slide: 480ms;
   color-scheme: dark;
 }
 
@@ -111,9 +114,23 @@ h3 {
   flex-wrap: wrap;
 }
 .wordmark {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  --track: 0.28em;
+  position: relative;
+  display: inline-block;
+  padding-top: 13px;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: var(--track);
+  margin-right: calc(-1 * var(--track)); /* drop the tracking after the last letter */
+}
+.wordmark svg {
+  position: absolute;
+  top: 0;
+  left: -0.18em;
+  width: calc(100% - var(--track) + 0.36em);
+  height: 14px;
+  overflow: visible;
 }
 .tagline {
   color: var(--dust-2);
@@ -188,11 +205,14 @@ input:hover {
 }
 .hero-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  gap: 8px 12px;
   flex-wrap: wrap;
   margin-bottom: 8px;
+}
+.hero-head h1,
+.when-head h2 {
+  margin-right: auto;
 }
 .hero-head p {
   font-size: 15px;
@@ -289,17 +309,35 @@ input:hover {
 
 /* ---------- workspace ---------- */
 .workspace {
+  --sites-open: 290px;
+  --status-open: 380px;
+  --rail: 44px;
+  --sites-col: var(--sites-open);
+  --status-col: var(--status-open);
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr) 380px;
+  grid-template-columns: var(--sites-col) minmax(0, 1fr) var(--status-col);
   border-bottom: 1px solid var(--line);
+  transition: grid-template-columns var(--slide) var(--ease-out);
 }
 .col-sites {
-  position: relative;
   border-right: 1px solid var(--line);
 }
-.col-sites .sites {
+/* Anchored to the inner edge so the list slides out with it instead of reflowing. */
+.col-sites .drawer-body {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--sites-open) - 1px);
+  display: flex;
+  flex-direction: column;
+}
+.col-sites .collapse {
+  flex: 1;
+  min-height: 0;
+}
+.col-sites .sites {
+  height: 100%;
   overflow-y: auto;
 }
 .col-status {
@@ -415,6 +453,12 @@ input:hover {
   gap: 10px;
   justify-content: space-between;
   padding: 12px 16px;
+}
+.map-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .map-body {
   position: relative;
@@ -752,7 +796,6 @@ dd {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px 20px;
   margin-bottom: 10px;
 }
@@ -840,6 +883,12 @@ dd {
 }
 .lower-block + .lower-block {
   border-top: 1px solid var(--line);
+}
+.block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .lede {
   margin: 4px 0 14px;
@@ -961,6 +1010,148 @@ dd {
   font-size: 12.5px;
 }
 
+/* ---------- drawers and collapsible sections ---------- */
+button.toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--dust-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+button.toggle:hover {
+  color: var(--dust);
+  background: var(--raised);
+  border-color: var(--line);
+}
+button.toggle svg {
+  transition: transform var(--slide) var(--ease-out);
+}
+button.toggle[aria-expanded='false'] svg {
+  transform: rotate(180deg);
+}
+button.toggle.focus {
+  border-color: var(--line);
+}
+button.toggle.focus[aria-pressed='true'] {
+  color: var(--chassis);
+  background: var(--dust);
+  border-color: var(--dust);
+}
+
+/* A section folds up to its heading: the row animates from its height to zero. */
+.collapse {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* let SVG charts shrink with the screen */
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--slide) var(--ease-fold), opacity 280ms ease 120ms;
+}
+.collapse-inner {
+  min-height: 0;
+  overflow-x: visible;
+  overflow-y: clip;
+}
+.collapse.is-closed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--slide) var(--ease-fold), opacity 160ms ease;
+}
+.collapse.is-closed > .collapse-inner {
+  visibility: hidden;
+  transition: visibility 0s linear var(--slide);
+}
+
+/* A side panel folds into a rail; the grid track animates and the map follows. */
+.drawer {
+  position: relative;
+  overflow: hidden;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 8px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.col-status .drawer-head {
+  padding-left: 20px;
+}
+.drawer-head h2 {
+  font-size: 13px;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-variation-settings: normal;
+  letter-spacing: 0;
+  color: var(--dust-2);
+}
+.drawer-body {
+  transition: opacity 280ms ease 160ms, visibility 0s;
+}
+.drawer-rail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  color: var(--dust-2);
+  background: none;
+  border: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 160ms ease, visibility 0s linear 160ms, background-color 160ms ease, color 160ms ease;
+}
+.drawer-rail:hover {
+  color: var(--dust);
+  background: var(--raised);
+}
+.rail-label {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+@media (min-width: 761px) {
+  .workspace.sites-closed {
+    --sites-col: var(--rail);
+  }
+  .sites-closed .col-sites .drawer-body {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 160ms ease, visibility 0s linear var(--slide);
+  }
+  .sites-closed .col-sites .drawer-rail {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 280ms ease 200ms, visibility 0s, background-color 160ms ease, color 160ms ease;
+  }
+}
+@media (min-width: 1241px) {
+  .workspace.status-closed {
+    --status-col: var(--rail);
+  }
+  .col-status .drawer-body {
+    width: calc(var(--status-open) - 1px);
+  }
+  .status-closed .col-status .drawer-body {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 160ms ease, visibility 0s linear var(--slide);
+  }
+  .status-closed .col-status .drawer-rail {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 280ms ease 200ms, visibility 0s, background-color 160ms ease, color 160ms ease;
+  }
+}
+
 .foot {
   padding: 16px 24px 28px;
   border-top: 1px solid var(--line);
@@ -974,7 +1165,8 @@ dd {
 /* ---------- responsive ---------- */
 @media (max-width: 1240px) {
   .workspace {
-    grid-template-columns: 260px minmax(0, 1fr);
+    --sites-open: 260px;
+    grid-template-columns: var(--sites-col) minmax(0, 1fr);
   }
   .col-status {
     grid-column: 1 / -1;
@@ -998,10 +1190,39 @@ dd {
   .workspace {
     grid-template-columns: 1fr;
   }
+  /* One column: the site list stacks above the map and folds up like a section. */
+  .col-sites .drawer-body {
+    position: static;
+    width: auto;
+  }
+  .col-sites .sites {
+    height: auto;
+    max-height: 300px;
+  }
+  .map-tools .focus {
+    display: none;
+  }
   .col-sites {
     border-right: 0;
     border-bottom: 1px solid var(--line);
-    height: 300px;
+  }
+  /* Headings keep their fold button on the right; their controls drop below. */
+  .hero-head h1,
+  .when-head h2 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .hero-head .toggle,
+  .when-head .toggle {
+    order: 1;
+  }
+  .hero-head p,
+  .when-head .transport {
+    order: 2;
+    flex-basis: 100%;
+  }
+  .col-strip {
+    min-width: 120px;
   }
   .col-map {
     min-height: 440px;
