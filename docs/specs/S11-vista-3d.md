@@ -48,7 +48,7 @@ Se hace en dos fases. La fase 1 es el objetivo de esta spec. La fase 2 solo se h
 9. **Exageración vertical**: un conmutador entre "Real" y "×3".
 10. **Indicador mínimo** en una esquina: el rumbo ("Mirando al NE 42°"), el estado de los astros ("Sol visible 100% · Tierra oculta") y la resolución del terreno ("Terreno 240 m", con "(precalculado)" si viene del disco). No se dibuja nada más sobre el paisaje: ni rejilla, ni puntos cardinales, ni etiquetas.
 11. Cielo negro, sin atmósfera, con un campo de estrellas decorativo como el del panorama.
-12. **Fuera de la zona con terreno real** (al norte de 80°S), el botón aparece desactivado y explica por qué, como el buscador de puntos. También si el servidor no tiene la topografía.
+12. **Donde no hay topografía**, el botón aparece desactivado y explica por qué. Desde [S17](S17-relieve-global.md) eso solo pasa con un punto propio fuera del polo, en un servidor sin la malla global; antes pasaba en todo lo que quedara al norte de 80°S.
 13. **En móvil y tableta** funciona lo básico: girar con el dedo y controles de tiempo adaptados a pantalla pequeña, con calidad reducida.
 
 ### Fase 2: vista aérea (si sobra tiempo)
@@ -75,7 +75,7 @@ Con la malla de 240 m, que es la que tiene instalada la mayoría de los equipos,
 - Devuelve una malla cuadrada de alturas en el plano tangente del sitio, con el este en `x`, el norte en `y` y la fila 0 en el borde norte. Cada vértice se toma de la malla más fina disponible (`heightAtXY` de [dem.js](../../server/dem.js)). La distancia en el plano se trata como distancia sobre la superficie: a 32 km, la diferencia es menor de 2 m.
 - Las alturas son relativas al suelo del sitio, en enteros de 16 bits con pasos de 0.5 m. La curvatura lunar ya va restada, para que el terreno lejano caiga bajo el horizonte.
 - Las cabeceras llevan el lado, el número de vértices y la resolución del terreno usado, como hace `/api/heightmap`: `X-Patch-Size-Km`, `X-Patch-Vertices`, `X-Patch-Resolution-M`, y `X-Patch-Precomputed: 1` cuando viene del disco.
-- Responde con un error 400 al norte de 80°S o con otro tamaño, y con 503 si no hay ni terreno instalado ni parche precalculado.
+- Responde con un error 400 si el tamaño no es 8 ni 64 km, y con 503 si en ese punto no hay ni terreno instalado ni parche precalculado. Hasta [S17](S17-relieve-global.md) también rechazaba los puntos al norte de 80°S.
 - Cada parche tarda unos 22 ms en calcularse, y el servidor guarda los últimos 64.
 
 **Parches precalculados.** El servidor público no tiene las mallas finas ([S03](S03-ci-y-despliegue.md)). `npm run precompute` guarda también los dos parches de cada sitio polar del catálogo en `server/data/patches/`: 132 KB cada uno, unos 3 MB para los 12 sitios, más un `index.json`. Van en el repositorio. El servidor usa el precalculado cuando su terreno es más fino que el instalado, con la misma regla que los horizontes. La copia estática de S03 los incluirá.
@@ -118,7 +118,7 @@ Fase 1:
 4. El paisaje queda sin luz directa exactamente cuando el estado del sitio dice "Oculto". **Cumple** alrededor del módulo, por construcción: allí la luz es `sky.sun.frac`. Comprobado a mano en el fondo de Shackleton, donde el suelo está a oscuras y el borde opuesto del cráter, iluminado.
 5. Al reproducir, el Sol y la Tierra se mueven sobre sus trayectorias. Al cerrar la vista, la barra de tiempo de la app muestra el mismo instante. **Cumple** (prueba de navegador).
 6. Con "×3", un astro que estaba oculto sigue oculto y uno visible sigue visible. **Cumple** (prueba automática).
-7. El botón está desactivado, con su explicación, en un sitio al norte de 80°S. **Cumple** (prueba de navegador, con Apollo 11).
+7. El botón está desactivado, con su explicación, donde no hay topografía. **Cumple** (prueba de navegador: primero con Apollo 11; desde [S17](S17-relieve-global.md), con un punto propio a 10°N).
 8. `Esc` y el botón ✕ cierran la vista. Las flechas giran la cámara. **Cumple** (prueba de navegador: seis pulsaciones giran 30°).
 9. Mantiene 30 fotogramas por segundo en una gráfica integrada, y se puede usar en un móvil de gama media. **A medias**: de 68 a 84 fotogramas por segundo durante la reproducción, en Edge sin ventana en el portátil de desarrollo. En un móvil emulado (390 × 844, táctil), la disposición cabe y el dedo gira la cámara. Falta medirlo en una gráfica integrada y un móvil reales.
 10. Sin WebGL muestra un mensaje claro y el resto de la app sigue funcionando. **Cumple**: comprobado con WebGL desactivado en Edge.
@@ -131,7 +131,7 @@ Fase 2:
 ## Pruebas
 
 - **Automáticas**, en [patch.test.js](../../tests/patch.test.js) (12 pruebas) y [terrain3d.test.ts](../../tests/terrain3d.test.ts) (13 pruebas): el criterio 1, la orientación del parche, la elección entre parche precalculado e instalado, los errores 400, la conversión de azimut y elevación a dirección, el anillo de cumbres frente al perfil y la exageración (criterio 6). En la fase 2, el nuevo valor de `v` en [urlState.test.ts](../../tests/urlState.test.ts).
-- **En el navegador**, en [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) ([S15](S15-pruebas-de-navegador.md)): abrir la vista, que dibuje algo, el indicador, girar con las flechas, el mástil, la reproducción, cerrar con `Esc`, que el instante y el mástil se conserven, y el botón desactivado al norte de 80°S. Sin errores en la consola.
+- **En el navegador**, en [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) ([S15](S15-pruebas-de-navegador.md)): abrir la vista, que dibuje algo, el indicador, girar con las flechas, el mástil, la reproducción, cerrar con `Esc`, que el instante y el mástil se conserven, y el botón desactivado donde no hay topografía. Sin errores en la consola.
 - **A mano**: los criterios 2 a 4 y 9 a 11. No hay pruebas automáticas del dibujo. Los criterios 2 y 3 se midieron con un guion que recorre el parche de 64 km en tres direcciones y lo compara con `computeHorizon`.
 
 ## Fuera de alcance
@@ -142,7 +142,7 @@ Fase 2:
 - Texturas fotográficas del terreno. El detalle procedural no pretende serlo.
 - Recorridos de un rover o moverse por el terreno. La cámara solo gira.
 - Realidad virtual.
-- Terreno 3D para puntos fuera de 80°S a 90°S.
+- Terreno 3D para puntos fuera de 80°S a 90°S. Lo añade [S17](S17-relieve-global.md).
 
 ## Riesgos
 

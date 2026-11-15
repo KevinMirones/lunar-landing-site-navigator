@@ -4,7 +4,8 @@ import express from 'express';
 import compression from 'compression';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buildHeightmap, demAvailable, demResolutions, resolutionAt } from './dem.js';
+import { buildHeightmap, demAvailable, demResolutions, terrainResolutionAt } from './dem.js';
+import { globalDemAvailable } from './globalDem.js';
 import { computeHorizon, serializeHorizon, COVERAGE_MAX_LAT } from './horizon.js';
 import { PATCH_SIZES_KM, buildPatch, loadPrecomputedPatches, patchKey } from './patch.js';
 import { keyOf, loadPrecomputed } from './precomputed.js';
@@ -88,7 +89,7 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, dem: demAvailable(), resolutionsM: demResolutions(), precomputed: horizons.size, coverageMaxLat: COVERAGE_MAX_LAT, psr: psrAvailable() });
+    res.json({ ok: true, dem: demAvailable(), resolutionsM: demResolutions(), precomputed: horizons.size, coverageMaxLat: COVERAGE_MAX_LAT, globalDem: globalDemAvailable(), psr: psrAvailable() });
   });
 
   // Distance to the nearest permanently shadowed region (S16).
@@ -110,9 +111,10 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
     const key = `${lat.toFixed(4)}|${lon.toFixed(4)}|${mast}`;
     let body = horizonCache.get(key);
     if (!body) {
-      // A horizon computed beforehand wins when its terrain is finer than what is installed here.
-      const pre = lat <= COVERAGE_MAX_LAT ? horizons.get(keyOf(lat, lon, mast)) : undefined;
-      const here = demAvailable() ? (resolutionAt(lat, lon) ?? Infinity) : Infinity;
+      // A horizon computed beforehand wins when its terrain is finer than what is installed
+      // at that point, or when nothing is (S17: catalogue sites outside the pole).
+      const pre = horizons.get(keyOf(lat, lon, mast));
+      const here = terrainResolutionAt(lat, lon) ?? Infinity;
       body = pre && pre.resolutionM < here ? { ...pre, precomputed: true } : serializeHorizon(computeHorizon(lat, lon, mast));
       if (horizonCache.size > 500) horizonCache.delete(horizonCache.keys().next().value);
       horizonCache.set(key, body);
@@ -143,16 +145,16 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
     if (lat === null || lon === null || !PATCH_SIZES_KM.includes(size)) {
       return res.status(400).json({ error: `lat (-90..90), lon (-360..360) and size (${PATCH_SIZES_KM.join(' or ')} km) are required` });
     }
-    if (lat > COVERAGE_MAX_LAT) return res.status(400).json({ error: 'The 3D view needs real terrain: the point must lie between 80°S and 90°S.' });
     const key = patchKey(lat, lon, size);
     let patch = patchCache.get(key);
     if (!patch) {
-      // A patch computed beforehand wins when its terrain is finer than what is installed here.
+      // A patch computed beforehand wins when its terrain is finer than what is installed
+      // at that point, or when nothing is (S17: catalogue sites outside the pole).
       const pre = patches.get(key);
-      const here = demAvailable() ? (resolutionAt(lat, lon) ?? Infinity) : Infinity;
+      const here = terrainResolutionAt(lat, lon) ?? Infinity;
       if (pre && pre.resolutionM < here) patch = { ...pre, precomputed: true };
-      else if (demAvailable()) patch = buildPatch(lat, lon, size);
-      else return res.status(503).json({ error: 'DEM not installed. Run: npm run fetch-data' });
+      else if (here !== Infinity) patch = buildPatch(lat, lon, size);
+      else return res.status(503).json({ error: 'No terrain for this point: the 3D view needs it. Install it with npm run fetch-data (add -- --global outside the south pole).' });
       if (patchCache.size > 64) patchCache.delete(patchCache.keys().next().value);
       patchCache.set(key, patch);
     }

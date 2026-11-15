@@ -626,6 +626,7 @@ function createStage(canvas: HTMLCanvasElement, wrap: HTMLElement, onView: (yaw:
       yaw = wrapAz(y);
       pitch = clampPitch(p);
       onView(yaw);
+      wrap.dataset.pitch = String(Math.round(pitch)); // read by the browser checks
       dirty = true;
     },
     view: () => ({ yaw, pitch }),

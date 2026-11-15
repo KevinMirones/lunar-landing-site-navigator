@@ -1,7 +1,7 @@
 ---
 id: S17
 titulo: Relieve en toda la Luna
-estado: en curso
+estado: hecha
 dia: 7
 prioridad: recortable
 depende: S06, S11, S13
@@ -21,6 +21,37 @@ Desde [S13](S13-catalogo-y-polo-norte.md), el catálogo tiene 25 sitios fuera de
 Al probar `main` el 15 de noviembre, lo primero que se echó en falta fue el relieve de Apollo 11.
 
 Sin relieve, la comparación entre sitios es injusta: un sitio rodeado de montañas, como Apollo 15 o Apollo 17, parece tan despejado como una llanura.
+
+## Resultado
+
+Hecha el 15 de noviembre. Se cumplen los 12 criterios.
+
+| Criterio | Resultado |
+| --- | --- |
+| 1. Apollo 15 | Mons Hadley se ve a 11.0° (azimut 44°, a 19.7 km) y Hadley Delta a 13.3° (azimut 178°, a 10.9 km) |
+| 2. Apollo 17 | El North Massif se ve a 13.7° (a 6.2 km) y el South Massif a 7.0° (a 11.6 km) |
+| 3. Apollo 11 | El punto más alto del horizonte está a 0.97° |
+| 4. Malla polar contra global | Las medianas son 0.06°, 0.35°, 0.03°, 0.48° y 0.05° en los cinco puntos. La de 0.48° va justa: cerca del sitio pesan las celdas de 474 m de norte a sur |
+| 5. Punto propio con la malla | "LOLA de 474 m" y vista 3D a 10°N 10°E |
+| 6. Catálogo sin la malla | Apollo 11 y Apollo 15 muestran "LOLA de 474 m (precalculado)", y la vista 3D carga "Terreno 474 m (precalculado)" |
+| 7. Punto propio sin la malla | Luna lisa y botón 3D desactivado, con su explicación |
+| 8. Coste | Un horizonte tarda 89 ms con la caché vacía y 25 ms con ella llena; un parche de 64 km, 11 ms |
+| 9. Sitios polares | Los 12 sitios no cambian (0.0000°) y sus parches son idénticos. Medido con la malla de 240 m; los archivos precalculados con las mallas finas no se tocaron |
+| 10. Memoria | La caché se llena en 32 MB, y el proceso crece 44 MB después de los 75 horizontes del catálogo |
+| 11. Repositorio | 7.4 MB nuevos: 872 KB de horizontes y 6.5 MB de parches |
+| 12. Mirar arriba | La cámara llega a 85° y la Tierra se ve en Apollo 11 |
+
+Comprobado con:
+
+- Pruebas sin datos: [globalDem.test.js](../../tests/globalDem.test.js) (16 pruebas, sobre mallas sintéticas).
+- Pruebas con la malla real: [globalTerrain.test.js](../../tests/globalTerrain.test.js) (7 pruebas, que se saltan si falta).
+- Prueba de navegador: [s17-relieve-global.mjs](../../e2e/s17-relieve-global.mjs) (11 comprobaciones; la del criterio 5 necesita `E2E_GLOBAL=1`).
+
+**Descarga.** Con 16 conexiones en paralelo, los 531 MB bajaron a entre 320 y 400 KB/s, en unos 25 minutos. Con una sola conexión iba a 37 KB/s.
+
+**Lo que se ve.** En Apollo 15 y Apollo 17, las montañas cierran el horizonte, también en la vista 3D. Apollo 11 es una llanura casi sin sombras con el Sol alto, como corresponde al Mar de la Tranquilidad a mediodía.
+
+**Sin hacer:** la comparación a mano con las fotos panorámicas de las misiones.
 
 ## Qué verá el usuario
 
@@ -76,8 +107,14 @@ Junto a ella, `terrainResolutionAt(lat, lon)` da la celda que se usará en el si
 - `/api/patch` deja de responder 400 al norte de 80°S. Responde 503 solo si en ese punto no hay ni terreno instalado ni parche precalculado.
 - `/api/horizon` y `/api/patch` buscan el precalculado en cualquier latitud. Lo usan si su celda es más fina que la instalada en ese punto, o si ahí no hay terreno instalado.
 - `/api/health` añade `globalDem: true | false`. `coverageMaxLat` se queda: sigue siendo el límite del buscador y del mapa polar.
+- `LUMINA_GLOBAL=0` deja la malla global apagada aunque esté instalada, como `LUMINA_HIRES=0` con las mallas finas.
+- El buscador de puntos la apaga en sus hilos de trabajo. Así sus resultados no cambian y cada hilo se ahorra la caché de bloques.
 
-**Descarga** ([fetch-data.mjs](../../scripts/fetch-data.mjs)). Nueva opción `--global`, que baja `ldem_64.img` y su etiqueta a `server/data/`. Los `.img` de esa carpeta ya los ignora git.
+**Descarga** ([fetch-data.mjs](../../scripts/fetch-data.mjs)):
+
+- Nueva opción `--global`, que baja `ldem_64.img` y su etiqueta a `server/data/`. Los `.img` de esa carpeta ya los ignora git.
+- Los archivos de 64 MB o más se bajan en trozos de 1 MB por 16 conexiones a la vez, y un archivo `.pieces` apunta los trozos terminados para poder reanudar.
+- El motivo: el 15 de noviembre el servidor de NASA daba de 30 a 40 KB/s por conexión, y 512 KB/s con 16 conexiones. Con una sola, los 531 MB tardarían unas 4 horas. Con trozos de 4 MB, las 16 conexiones agotaban el tiempo de espera.
 
 **Precálculo de los 25 sitios** ([precompute-horizons.mjs](../../scripts/precompute-horizons.mjs)):
 
@@ -94,9 +131,15 @@ Junto a ella, `terrainResolutionAt(lat, lon)` da la celda que se usará en el si
 - [Panels.tsx](../../src/components/Panels.tsx): "Fuera de la cobertura de terreno (80°S a 90°S): se usa una Luna lisa" pasa a "Sin topografía para este punto: se usa una Luna lisa". La línea de la sombra permanente no cambia.
 - [Export.tsx](../../src/components/Export.tsx): los límites del informe dicen "terreno real con celdas de 20 a 240 m en el polo sur y de 474 m en el resto".
 - [terrain3d.ts](../../src/lib/terrain3d.ts): `PITCH_MAX` pasa de 60° a 85°. Lejos del polo, el Sol pasa cerca del cenit y la Tierra está fija y alta en el cielo (unos 66° en Apollo 11). Con el límite de 60° no se podían ver.
+- La vista sigue abriéndose hacia el Sol, pero inclinada como mucho 15° (`START_PITCH_MAX`). Con el Sol cerca del cenit, abrir mirándolo dejaba el suelo fuera de la pantalla, porque la cámara ve 30° por encima y por debajo de su inclinación. Primero se probó con 25°, pero en la llanura de Apollo 11 el suelo quedaba detrás de la barra de controles. En los sitios polares no cambia nada, porque allí el Sol no pasa de unos 7°.
+- [Terrain3D.tsx](../../src/components/Terrain3D.tsx) publica la inclinación de la cámara en `data-pitch`, para la prueba de navegador.
 - El enlace compartible no gana parámetros.
 
-**Documentación.** En [S11](S11-vista-3d.md), el criterio "desactivado al norte de 80°S" pasa a "desactivado donde no hay topografía". Su flujo de navegador comprueba el botón desactivado con un punto propio a 10°N, en lugar de con Apollo 11.
+**Documentación y pruebas existentes:**
+
+- En [S11](S11-vista-3d.md), el criterio "desactivado al norte de 80°S" pasa a "desactivado donde no hay topografía".
+- Los flujos de navegador de S06 y S11 comprueban la Luna lisa con un punto propio a 10°N, en lugar de con Apollo 11.
+- `npm run e2e` arranca su servidor con `LUMINA_GLOBAL=0`, para dar los mismos resultados en cualquier equipo. Con `E2E_GLOBAL=1` arranca además otro servidor con la malla global, para el criterio 5.
 
 ## Criterios de aceptación
 
@@ -143,7 +186,7 @@ Siempre:
 
 ## Riesgos
 
-- **La descarga es lenta.** El 14 de noviembre, el servidor de NASA dio 60 KB/s: a ese ritmo, 531 MB tardarían unas 2.5 horas. Es opcional, se reanuda si se corta y solo la necesita quien precalcule; el resto del equipo usa los archivos del repositorio.
+- **La descarga es lenta.** Con una sola conexión, el servidor de NASA da de 37 a 60 KB/s, y 531 MB tardarían hasta 4 horas. Por eso `fetch-data` baja los archivos grandes por 16 conexiones, y así tardó unos 25 minutos. Es opcional, se reanuda si se corta y solo la necesita quien precalcule; el resto del equipo usa los archivos del repositorio.
 - **De cerca, 474 m decepciona.** El suelo cercano se ve liso, y Apollo 11 parecerá casi plano. El indicador dice la resolución ("Terreno 474 m") y el detalle procedural de S11 da textura. Los sitios que lucen son los rodeados de montañas, como Apollo 15 y Apollo 17.
 - **El repositorio crece unos 7.5 MB** con los archivos precalculados. Si molesta, los parches se pueden guardar comprimidos con `zlib`, que viene con Node y no es una dependencia nueva.
 - **Se mezclan dos mallas.** Las dos son de LOLA y usan la misma esfera, pero tienen fechas y celdas distintas: en el borde puede haber un escalón de unos metros. El criterio 4 comprueba que no cambie el horizonte.

@@ -11,7 +11,7 @@
 
 ## Specs
 
-17 specs: 0 pendientes, 7 en curso, 10 hechas, 0 recortadas.
+17 specs: 0 pendientes, 6 en curso, 11 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
@@ -31,7 +31,7 @@
 | S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | en curso | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
 | S15 | [Pruebas de navegador en el repositorio](specs/S15-pruebas-de-navegador.md)<br>Una orden que abre la app en un navegador real y comprueba cada función, también en cada pull request. | 4 | imprescindible | en curso | [S03](specs/S03-ci-y-despliegue.md) |
 | S16 | [Distancia a la sombra permanente](specs/S16-sombra-permanente.md)<br>Cada sitio dice a qué distancia tiene la zona en sombra permanente más cercana, donde puede conservarse hielo. | 5 | recortable | hecha | [S04](specs/S04-buscador-de-puntos.md), [S07](specs/S07-validacion-y-coordenadas.md) |
-| S17 | [Relieve en toda la Luna](specs/S17-relieve-global.md)<br>Los sitios fuera del polo sur, como los del programa Apollo, tienen horizonte con relieve real y vista 3D, igual que los del polo. | 7 | recortable | en curso | [S06](specs/S06-terreno-multirresolucion.md), [S11](specs/S11-vista-3d.md), [S13](specs/S13-catalogo-y-polo-norte.md) |
+| S17 | [Relieve en toda la Luna](specs/S17-relieve-global.md)<br>Los sitios fuera del polo sur, como los del programa Apollo, tienen horizonte con relieve real y vista 3D, igual que los del polo. | 7 | recortable | hecha | [S06](specs/S06-terreno-multirresolucion.md), [S11](specs/S11-vista-3d.md), [S13](specs/S13-catalogo-y-polo-norte.md) |
 
 ## Historial del proyecto
 
@@ -39,6 +39,7 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-15 | [Relieve real en toda la Luna](historial/2026-11-15-16-relieve-global.md)<br>Los 25 sitios del catálogo fuera del polo sur, como los Apollo, tienen horizonte con relieve real y vista 3D. La topografía global se precalcula una vez y va en el repositorio, así que el resto del equipo no descarga nada. | hito |
 | 2026-11-15 | [El mapa polar se queda en sus datos y la lista saca sitios de la comparación](historial/2026-11-15-15-mapa-y-comparar.md)<br>Al probar la versión integrada se vio que los botones de zoom del mapa no hacían nada, que el mapa se podía arrastrar fuera de sus datos y que no había forma clara de sacar un sitio de la comparación. Corregido. | incidencia |
 | 2026-11-15 | [Specs S08 a S16 implementadas, salvo S11](historial/2026-11-15-14-specs-s08-a-s16.md)<br>Energía, contacto, exportación, modo educativo, catálogo, sombra permanente, robustez y pruebas de navegador, en ramas apiladas. | hito |
 | 2026-11-15 | [La vista 3D se abre desde el panorama](historial/2026-11-15-13-vista-3d.md)<br>S11 pasa de una pestaña del mapa a una vista en primera persona a pantalla completa, con el relieve real y el Sol y la Tierra en movimiento. Fase 1 implementada. | decisión |

@@ -6,6 +6,7 @@
 //
 //   E2E_URL=https://…           test an address that is already running instead
 //   E2E_HIRES=1                 also start a server with the fine LOLA grids (for s06)
+//   E2E_GLOBAL=1                also start a server with the whole-Moon grid (for s17)
 //   E2E_CHANNEL=chrome          browser to drive (default: msedge on Windows, chrome elsewhere)
 //   E2E_ALLOW_NO_DEM=1          pass, with a warning, when the LOLA grid is missing (CI without data)
 import { spawn } from 'node:child_process';
@@ -48,6 +49,7 @@ async function startServer(env) {
 const servers = [];
 let base = process.env.E2E_URL;
 let fine = null;
+let global = null;
 let code = 0;
 try {
   if (!base) {
@@ -55,9 +57,9 @@ try {
       console.error('No compiled app in dist/. Run: npm run build');
       process.exit(1);
     }
-    // Without the fine grids, so results are the same on every machine: catalogue
-    // sites answer with their precomputed horizons either way.
-    const coarse = await startServer({ LUMINA_HIRES: '0' });
+    // Without the fine polar grids nor the whole-Moon grid, so results are the same on
+    // every machine: catalogue sites answer with their precomputed horizons either way.
+    const coarse = await startServer({ LUMINA_HIRES: '0', LUMINA_GLOBAL: '0' });
     servers.push(coarse.child);
     base = coarse.url;
     if (!coarse.health.dem) {
@@ -70,9 +72,16 @@ try {
       process.exit(1);
     }
     if (process.env.E2E_HIRES === '1') {
-      const hires = await startServer({ LUMINA_HIRES: '1' });
+      const hires = await startServer({ LUMINA_HIRES: '1', LUMINA_GLOBAL: '0' });
       servers.push(hires.child);
       fine = hires.url;
+    }
+    // S17: a server with the whole-Moon grid, for points of your own outside the pole.
+    if (process.env.E2E_GLOBAL === '1') {
+      const whole = await startServer({ LUMINA_HIRES: '0', LUMINA_GLOBAL: '1' });
+      servers.push(whole.child);
+      if (!whole.health.globalDem) throw new Error('E2E_GLOBAL=1 needs the whole-Moon grid: npm run fetch-data -- --global');
+      global = whole.url;
     }
   }
 
@@ -82,7 +91,7 @@ try {
     const started = Date.now();
     console.log(`\n=== ${flow}`);
     const status = await new Promise((resolve) => {
-      const child = spawn(process.execPath, [flow], { cwd: HERE, env: { ...process.env, E2E_URL: base, ...(fine ? { E2E_URL_FINE: fine } : {}) }, stdio: 'inherit' });
+      const child = spawn(process.execPath, [flow], { cwd: HERE, env: { ...process.env, E2E_URL: base, ...(fine ? { E2E_URL_FINE: fine } : {}), ...(global ? { E2E_URL_GLOBAL: global } : {}) }, stdio: 'inherit' });
       child.on('exit', (c) => resolve(c ?? 1));
     });
     console.log(`--- ${flow}: ${status === 0 ? 'ok' : 'FAILED'} in ${((Date.now() - started) / 1000).toFixed(1)} s`);

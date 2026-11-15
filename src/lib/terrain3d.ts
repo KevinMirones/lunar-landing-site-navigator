@@ -7,7 +7,14 @@ import { compass } from './util';
 
 const DEG = Math.PI / 180;
 export const PITCH_MIN = -30;
-export const PITCH_MAX = 60;
+/** Away from the pole the Sun passes near the zenith and Earth stands high (S17), so the camera looks almost straight up. */
+export const PITCH_MAX = 85;
+/**
+ * The view opens at most this far up, so the ground stays in frame: the camera sees 30 degrees
+ * above and below its pitch, and the controls cover the bottom of the screen. At 25 degrees the
+ * flat plain of Apollo 11 hid behind them.
+ */
+export const START_PITCH_MAX = 15;
 export type Vec3 = [number, number, number];
 
 export const wrapAz = (az: number) => ((az % 360) + 360) % 360;
@@ -41,7 +48,7 @@ export function heading(yawDeg: number, lang: Lang): string {
 /** Opening view: toward the Sun, or the crest in front of it when it is hidden. */
 export function initialView(sky: Sky, k: number): { yaw: number; pitch: number } {
   const el = Math.max(sky.sun.el, sky.sun.horizon);
-  return { yaw: sky.sun.az, pitch: clampPitch(exaggerateEl(el, k)) };
+  return { yaw: sky.sun.az, pitch: Math.min(START_PITCH_MAX, clampPitch(exaggerateEl(el, k))) };
 }
 
 /**

@@ -3,10 +3,14 @@
 // types when it loads it (Node 22.18 or newer).
 import { parentPort, workerData } from 'node:worker_threads';
 import { adoptDem, heightAtLatLon, slopeDegAt } from './dem.js';
+import { disableGlobalDem } from './globalDem.js';
 import { computeHorizon } from './horizon.js';
 import { frameSeries, metrics, siteSeries } from '../src/lib/series.ts';
 
 adoptDem(workerData.dem); // the elevation grids are shared with the main thread, not copied
+// The search stays within 80S to 90S on the polar grids, as before S17: without the
+// whole-Moon grid its results do not change, and each worker saves its block cache.
+disableGlobalDem();
 
 const HOUR = 3600e3;
 const round = (x, digits) => Math.round(x * 10 ** digits) / 10 ** digits;

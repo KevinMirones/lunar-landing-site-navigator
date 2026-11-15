@@ -45,9 +45,9 @@ const malapert = await row(page);
 const malapertSource = await text(page, '.status-site .status-source');
 check('Malapert is a representative point of an Artemis III region', malapertSource.includes('Punto representativo') && malapertSource.includes('Artemis III'), malapertSource);
 check('Malapert summit: 100% light and 100% link in the 30-day mission', /100% .*100%/.test(malapert), malapert.slice(0, 120));
-await page.getByRole('button', { name: 'Apollo 11' }).click();
-await page.waitForTimeout(1200);
-check('outside coverage the smooth Moon is announced', (await text(page, '.status-site .model')).includes('Luna lisa'));
+// A point of your own outside the pole, on a server without the whole-Moon grid (S17).
+await goto(page, '?s=10,10@2026-11-14T00:00~30~2&a=0&l=es');
+check('without topography the smooth Moon is announced', (await text(page, '.status-site .model')).includes('Luna lisa'));
 
 // a custom point has no precomputed horizon
 await goto(page, '?s=-89.5,-130@2026-11-14T00:00~30~2&a=0&l=es');

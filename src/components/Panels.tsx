@@ -227,7 +227,7 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
             </>
           ) : horizon.offline
               ? tr('Sin conexión con el servidor de terreno: se usa una Luna lisa.', 'Terrain server unreachable: using a smooth Moon.')
-              : tr('Fuera de la cobertura de terreno (80°S a 90°S): se usa una Luna lisa.', 'Outside terrain coverage (80°S to 90°S): using a smooth Moon.')}
+              : tr('Sin topografía para este punto: se usa una Luna lisa.', 'No topography for this point: using a smooth Moon.')}
         </p>
         {psr && (
           <p className="status-psr">

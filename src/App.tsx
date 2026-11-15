@@ -521,12 +521,11 @@ export default function App() {
   const span = maxSpanMs(scenarios);
   const polarAvailable = heightmap && heightmap !== 'loading';
   const [terrainOpen, setTerrainOpen] = useState(false);
+  // S17: wherever the horizon comes from real terrain, the 3D view has terrain too.
   const terrainBlocked =
-    site.lat > -80
-      ? tr('La vista 3D necesita terreno real: solo funciona entre 80°S y 90°S.', 'The 3D view needs real terrain: it only works between 80°S and 90°S.')
-      : horizon?.model !== 'lola'
-        ? tr('La vista 3D necesita la topografía LOLA en el servidor («npm run fetch-data»).', 'The 3D view needs the LOLA topography on the server (“npm run fetch-data”).')
-        : null;
+    horizon?.model !== 'lola'
+      ? tr('Este punto no tiene topografía en el servidor, y la vista 3D necesita terreno real.', 'This point has no topography on the server, and the 3D view needs real terrain.')
+      : null;
 
   return (
     <LangContext.Provider value={lang}>

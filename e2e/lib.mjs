@@ -8,6 +8,8 @@ import { chromium } from 'playwright-core';
 export const BASE = (process.env.E2E_URL || 'http://localhost:8787/').replace(/\/?$/, '/');
 /** Set when `npm run e2e` also started a server that holds the fine LOLA grids (E2E_HIRES=1). */
 export const BASE_FINE = process.env.E2E_URL_FINE ? process.env.E2E_URL_FINE.replace(/\/?$/, '/') : null;
+/** Set when `npm run e2e` also started a server that holds the whole-Moon grid (E2E_GLOBAL=1, S17). */
+export const BASE_GLOBAL = process.env.E2E_URL_GLOBAL ? process.env.E2E_URL_GLOBAL.replace(/\/?$/, '/') : null;
 /** Timing bounds hold on the development laptop only, as in `npm run test:perf`. */
 export const PERF = process.env.LUMINA_PERF === '1';
 

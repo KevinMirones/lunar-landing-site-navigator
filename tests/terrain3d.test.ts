@@ -64,9 +64,10 @@ describe('camera', () => {
     expect(wrapAz(370)).toBeCloseTo(10, 9);
   });
 
-  it('keeps the pitch between -30 and +60 degrees', () => {
+  it('keeps the pitch between -30 and +85 degrees, to reach a high Sun or Earth away from the pole (S17)', () => {
     expect(clampPitch(-80)).toBe(-30);
-    expect(clampPitch(75)).toBe(60);
+    expect(clampPitch(75)).toBe(75);
+    expect(clampPitch(90)).toBe(85);
     expect(clampPitch(5)).toBe(5);
   });
 
@@ -80,6 +81,11 @@ describe('camera', () => {
   it('opens looking at the Sun', () => {
     const sky: Sky = { sun: body(126, 1.6, 0.4), earth: body(300, -4, 0) };
     expect(initialView(sky, 1)).toEqual({ yaw: 126, pitch: 1.6 });
+  });
+
+  it('opens no higher than 15 degrees under a high Sun, so the ground stays in frame (S17)', () => {
+    const sky: Sky = { sun: body(140, 80, 0), earth: body(270, 66, 0) };
+    expect(initialView(sky, 1)).toEqual({ yaw: 140, pitch: 15 });
   });
 
   it('looks at the ridge in front of a hidden Sun', () => {

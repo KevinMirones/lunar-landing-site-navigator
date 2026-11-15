@@ -1,6 +1,7 @@
 // Sanity checks of the terrain model against well-known south-pole geography.
 import { describe, expect, it } from 'vitest';
 import { demAvailable, heightAtLatLon } from '../server/dem.js';
+import { closeGlobalDem, disableGlobalDem } from '../server/globalDem.js';
 import { computeHorizon, sphereDipDeg } from '../server/horizon.js';
 
 const hasDem = demAvailable();
@@ -12,8 +13,10 @@ describe('smooth-sphere horizon', () => {
     expect(sphereDipDeg(0.1)).toBeLessThan(sphereDipDeg(0.002));
   });
 
-  it('is used outside LOLA coverage', () => {
+  it('is used outside the polar grids when the whole-Moon grid is not installed', () => {
+    disableGlobalDem();
     const h = computeHorizon(0.67416, 23.47314, 2); // Apollo 11
+    closeGlobalDem();
     expect(h.model).toBe('sphere');
     expect(Math.max(...h.elevationDeg)).toBeCloseTo(-0.0869, 3);
   });

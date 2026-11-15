@@ -1,12 +1,12 @@
 // Terrain horizon mask: for every azimuth, the highest elevation angle at which
 // lunar terrain blocks the sky as seen from the site. No atmosphere, so no
 // refraction: the horizon is pure geometry (terrain + curvature of the sphere).
-import { MOON_RADIUS_KM as R, DEM_MIN_LAT, loadDem, heightAtXY, heightAtLatLon, resolutionAt } from './dem.js';
+import { MOON_RADIUS_KM as R, POLAR_COVERAGE_MAX_LAT, heightAtUnit, loadDem, terrainResolutionAt } from './dem.js';
 
 const DEG = Math.PI / 180;
-export const COVERAGE_MAX_LAT = -80; // sites poleward of this get a real-terrain horizon
+/** Limit of the polar map and the point search. Horizons reach further when the whole-Moon grid is installed (S17). */
+export const COVERAGE_MAX_LAT = POLAR_COVERAGE_MAX_LAT;
 const MAX_RANGE_KM = 400;
-const EDGE_Z = Math.sin(DEM_MIN_LAT * DEG);
 
 /** Dip of a smooth sphere's horizon for an eye `heightKm` above the surface (negative degrees). */
 export function sphereDipDeg(heightKm) {
@@ -41,22 +41,23 @@ export function computeHorizon(latDeg, lonDeg, mastM = 2, nAz = 720) {
   const elev = new Float32Array(nAz);
   const dist = new Float32Array(nAz);
 
-  if (latDeg > COVERAGE_MAX_LAT || !loadDem()) {
-    elev.fill(sphereDipDeg(mastKm));
-    return { model: 'sphere', siteElevationM: 0, mastM, nAz, elevationDeg: elev, distanceKm: dist };
-  }
-
+  loadDem();
+  const resolutionM = terrainResolutionAt(latDeg, lonDeg);
   const lat = latDeg * DEG;
   const lon = lonDeg * DEG;
   // Moon-fixed unit vectors: site position, local north, local east.
   const p0 = [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
+  const h0 = resolutionM === null ? NaN : heightAtUnit(p0[0], p0[1], p0[2]);
+
+  if (Number.isNaN(h0)) {
+    elev.fill(sphereDipDeg(mastKm));
+    return { model: 'sphere', siteElevationM: 0, mastM, nAz, elevationDeg: elev, distanceKm: dist };
+  }
+
   const n = [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)];
   const e = [-Math.sin(lon), Math.cos(lon), 0];
-
-  const h0 = heightAtLatLon(latDeg, lonDeg);
   // The ray starts half a cell out and advances half a cell at a time, then 1% of the distance:
-  // 10 m steps over 20 m terrain, 120 m steps over 240 m terrain.
-  const resolutionM = resolutionAt(latDeg, lonDeg);
+  // 10 m steps over 20 m terrain, 120 m steps over 240 m terrain, 237 m over the whole-Moon grid.
   const halfCell = resolutionM / 2000;
   const r0 = R + h0 + mastKm;
   const steps = raySteps(halfCell);
@@ -77,10 +78,8 @@ export function computeHorizon(latDeg, lonDeg, mastM = 2, nAz = 720) {
     for (let i = 0; i < count; i++) {
       const cg = steps.cos[i];
       const sg = steps.sin[i];
-      const z = p0[2] * cg + dz * sg;
-      if (z > EDGE_Z) break; // left the DEM
-      const k = (2 * R) / (1 - z);
-      const h = heightAtXY(k * (p0[1] * cg + dy * sg), k * (p0[0] * cg + dx * sg));
+      // Polar grids first, then the whole-Moon grid if installed.
+      const h = heightAtUnit(p0[0] * cg + dx * sg, p0[1] * cg + dy * sg, p0[2] * cg + dz * sg);
       if (h !== h) break; // NaN: outside every grid
       const r1 = R + h;
       const tan = (r1 * cg - r0) / (r1 * sg);

@@ -4,10 +4,14 @@
 // 80 m, 40 m and 20 m grids are optional and nest inside it around the pole.
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { globalDemAvailable, globalHeightAtUnit, globalResolutionM } from './globalDem.js';
 
 export const MOON_RADIUS_KM = 1737.4;
 export const DEM_SCALE_KM = 0.24;
 export const DEM_MIN_LAT = -75;
+/** Sites poleward of this get real terrain from the polar grids alone: their rays stay inside them. */
+export const POLAR_COVERAGE_MAX_LAT = -80;
+const POLAR_EDGE_Z = Math.sin((DEM_MIN_LAT * Math.PI) / 180);
 const DN_TO_KM = 0.5 / 1000;
 
 // Sizes are the LINES / LINE_SAMPLES of each product's .lbl. Finest first.
@@ -130,6 +134,17 @@ export function withCoarseOnly(fn) {
   }
 }
 
+/** Runs `fn` with the polar grids out of use, to compare them with the whole-Moon grid (S17). */
+export function withoutPolarGrids(fn) {
+  const all = loadDem();
+  grids = [];
+  try {
+    return fn();
+  } finally {
+    grids = all;
+  }
+}
+
 /** Height from one grid only (by cell size in metres), to compare grids with each other. */
 export function heightInGrid(resolutionM, xKm, yKm) {
   const g = grids.find((it) => Math.round(it.scaleKm * 1000) === resolutionM);
@@ -152,6 +167,33 @@ export function xyToLatLon(xKm, yKm) {
 export function heightAtLatLon(latDeg, lonDeg) {
   const [x, y] = latLonToXY(latDeg, lonDeg);
   return heightAtXY(x, y);
+}
+
+/**
+ * Terrain height in km of a point given as a unit vector (x toward 0E on the
+ * equator, z toward the north pole): the finest polar grid that holds it, else
+ * the whole-Moon grid (S17), else NaN. The polar grids must be loaded first (loadDem).
+ */
+export function heightAtUnit(x, y, z) {
+  if (grids && z < POLAR_EDGE_Z) {
+    const k = (2 * MOON_RADIUS_KM) / (1 - z);
+    const g = gridAt(k * y, k * x);
+    if (g) return sample(g, k * y, k * x);
+  }
+  return globalHeightAtUnit(x, y, z);
+}
+
+/**
+ * Cell size in metres of the terrain a horizon or patch at this site would use,
+ * or null when the site has none. Within 80S to 90S the polar grids are enough.
+ * Elsewhere the whole-Moon grid is needed: on its own, or to carry on the rays of
+ * a site between 75S and 80S that would otherwise leave the polar grids too soon.
+ */
+export function terrainResolutionAt(latDeg, lonDeg) {
+  const polar = loadDem() && latDeg < DEM_MIN_LAT ? resolutionAt(latDeg, lonDeg) : null;
+  if (polar !== null && latDeg <= POLAR_COVERAGE_MAX_LAT) return polar;
+  if (!globalDemAvailable()) return null;
+  return polar ?? globalResolutionM();
 }
 
 /** Terrain slope in degrees, from the height difference one grid cell either side of the point. */

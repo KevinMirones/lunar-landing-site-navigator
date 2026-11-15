@@ -136,8 +136,8 @@ function Report({ rows, horizons, spanMs, link, comms, onDone }: ReportData & { 
         </p>
         <p>
           {tr(
-            'Límites: terreno real solo de 80°S a 90°S, con celdas de 20 a 240 m (no se ven rocas ni relieve de pocos metros); enlace geométrico, sin antenas; el índice es orientativo. Herramienta de apoyo a la planificación: no sustituye un análisis de misión. Datos: LOLA (NASA GSFC, PDS); efemérides validadas contra JPL Horizons.',
-            'Limits: real terrain only from 80°S to 90°S, with 20 to 240 m cells (no boulders or metre-scale relief); geometric link, no antennas; the index is indicative. A planning aid: it does not replace a mission analysis. Data: LOLA (NASA GSFC, PDS); ephemeris validated against JPL Horizons.',
+            'Límites: terreno real con celdas de 20 a 240 m en el polo sur y de 474 m en el resto (no se ven rocas ni relieve de pocos metros); enlace geométrico, sin antenas; el índice es orientativo. Herramienta de apoyo a la planificación: no sustituye un análisis de misión. Datos: LOLA (NASA GSFC, PDS); efemérides validadas contra JPL Horizons.',
+            'Limits: real terrain with 20 to 240 m cells at the south pole and 474 m elsewhere (no boulders or metre-scale relief); geometric link, no antennas; the index is indicative. A planning aid: it does not replace a mission analysis. Data: LOLA (NASA GSFC, PDS); ephemeris validated against JPL Horizons.',
           )}
         </p>
       </footer>

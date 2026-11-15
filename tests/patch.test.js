@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app.js';
 import { demAvailable, heightAtLatLon } from '../server/dem.js';
+import { globalDemAvailable } from '../server/globalDem.js';
 import { PATCH_VERTICES, buildPatch, patchKey } from '../server/patch.js';
 
 const hasDem = demAvailable();
@@ -38,10 +39,10 @@ describe('patch geometry', () => {
   });
 
   it('puts east on the right (+x) and north at the top (row 0)', () => {
-    // A test terrain that rises toward the site's east: ground there must come out higher.
-    const site = buildPatch(-85.99, 0, 8, (x) => x * 0.01); // at lon 0, map x points east
+    // Test terrains given on the unit sphere. At lon 0, east is +y; north is always +z.
+    const site = buildPatch(-85.99, 0, 8, (_x, y) => y * 100); // rises toward the site's east
     expect(at(site, N - 1, mid)).toBeGreaterThan(at(site, 0, mid));
-    const north = buildPatch(-85.99, 0, 8, (_x, y) => y * 0.01); // at lon 0, map +y points away from the pole: north
+    const north = buildPatch(-85.99, 0, 8, (_x, _y, z) => z * 1000); // rises toward the north
     expect(at(north, mid, 0)).toBeGreaterThan(at(north, mid, N - 1));
   });
 });
@@ -78,9 +79,9 @@ describe('/api/patch', () => {
   });
   afterAll(() => server.close());
 
-  it('rejects a point north of 80S', async () => {
+  it('no longer rejects a point by its latitude: north of 80S it depends on the terrain installed (S17)', async () => {
     const res = await fetch(`${base}/api/patch?lat=-70&lon=0&size=8`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(globalDemAvailable() ? 200 : 503);
   });
 
   it('rejects a size other than 8 or 64 km', async () => {

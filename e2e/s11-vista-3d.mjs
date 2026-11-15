@@ -1,5 +1,5 @@
 // S11: first-person 3D view of the site (by Andrés), on the shared helpers of S15.
-import { check, done, open } from './lib.mjs';
+import { check, done, goto, open } from './lib.mjs';
 // Malapert massif, where the Sun and Earth are both up on this date
 const { browser, page, errors } = await open('?s=-85.99,0@2026-11-15T00:00~30~2&a=0&l=es');
 const expand = page.getByRole('button', { name: 'Ver en 3D' });
@@ -47,9 +47,10 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(400);
 check('Esc closes the view', (await page.locator('.t3d').count()) === 0);
 check('time stays where the view left it', (await page.locator('.hero-head p').innerText()) === date3d, date3d);
 check('the mast chosen in the view stays chosen', (await page.getByRole('group', { name: 'Escenario activo' }).getByRole('button', { name: '50 m' }).getAttribute('aria-pressed')) === 'true');
-// outside terrain coverage the button is disabled and says why
-await page.locator('.site-main', { hasText: 'Apollo 11' }).click(); await page.waitForTimeout(1500);
+// where there is no topography the button is disabled and says why: a point of your own
+// outside the pole, on a server without the whole-Moon grid (S17)
+await goto(page, '?s=10,10@2026-11-15T00:00~30~2&a=0&l=es');
 const off = page.getByRole('button', { name: 'Ver en 3D' });
-check('outside terrain coverage the 3D view is disabled', await off.isDisabled());
-check('and explains why', /80°S/.test((await off.getAttribute('title')) || ''));
+check('without topography the 3D view is disabled', await off.isDisabled());
+check('and explains why', /topografía/.test((await off.getAttribute('title')) || ''));
 await browser.close(); done(errors);
