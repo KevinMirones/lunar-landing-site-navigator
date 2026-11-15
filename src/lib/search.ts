@@ -17,6 +17,8 @@ export interface SearchCell {
   bothShare: number;
   longestDarkH: number;
   score: number;
+  /** Distance to permanent shadow (S16), km; null beyond 20 km or without data. */
+  psrKm?: number | null;
 }
 
 export interface SearchResult {

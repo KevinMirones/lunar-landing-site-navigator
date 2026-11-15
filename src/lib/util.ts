@@ -88,6 +88,25 @@ export async function fetchHorizon(lat: number, lon: number, mastM: number): Pro
   }
 }
 
+/** Distance to the nearest permanently shadowed region (S16), from /api/psr. */
+export interface Psr {
+  /** False outside 80°S to 90°S, or when the server has no shadow map. */
+  covered: boolean;
+  inside: boolean;
+  /** Null when nothing lies within 50 km. */
+  distanceKm: number | null;
+  bearingDeg: number | null;
+}
+
+export async function fetchPsr(lat: number, lon: number): Promise<Psr | null> {
+  try {
+    const r = await fetch(`/api/psr?lat=${lat}&lon=${lon}`);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null; // no server: the line is left out
+  }
+}
+
 export interface Heightmap {
   /** Heights in km, row 0 = top (lon 0 up, 90E right). */
   data: Float32Array;

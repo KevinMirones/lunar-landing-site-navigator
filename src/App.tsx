@@ -22,7 +22,7 @@ import { bestDates, dailyShares, frameSeries, siteSeries, skyAt, windowScores, t
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
 import { TOUR } from './lib/tour';
 import { decode, encode, fromShared, toShared, type SharedState } from './lib/urlState';
-import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, useMedia, useStoredState, type Heightmap } from './lib/util';
+import { LangContext, fetchHeightmap, fetchHorizon, fetchPsr, type Psr, fmtDate, fromInput, toInput, useMedia, useStoredState, type Heightmap } from './lib/util';
 import { Chevron, Collapse, FocusIcon, SectionToggle } from './components/Collapse';
 import { Comms } from './components/Comms';
 import { ExportButtons } from './components/Export';
@@ -176,6 +176,23 @@ export default function App() {
       });
     }
   }, [scenarios, siteOf, horizons]);
+
+  // Nearest permanent shadow of every site in use (S16), asked once per site.
+  const [psrs, setPsrs] = useState<Record<string, Psr | null>>({});
+  const psrInflight = useRef(new Set<string>());
+  useEffect(() => {
+    for (const sc of scenarios) {
+      const s = siteOf(sc.siteId);
+      const key = `${s.lat}|${s.lon}`;
+      if (key in psrs || psrInflight.current.has(key)) continue;
+      psrInflight.current.add(key);
+      fetchPsr(s.lat, s.lon).then((p) => {
+        psrInflight.current.delete(key);
+        setPsrs((prev) => ({ ...prev, [key]: p }));
+      });
+    }
+  }, [scenarios, siteOf, psrs]);
+  const psrOf = useCallback((s: Site) => psrs[`${s.lat}|${s.lon}`] ?? null, [psrs]);
 
   // One analysis per scenario, recomputed only when that scenario or its horizon changes.
   const cache = useRef(new Map<string, { horizon: Horizon; analysis: ScenarioAnalysis }>());
@@ -483,8 +500,8 @@ export default function App() {
   }, [tour]);
 
   const rows: ScenarioRow[] = useMemo(
-    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null, power: powers.get(sc.id) ?? null, contact: contacts.get(sc.id) ?? null })),
-    [scenarios, siteOf, analyses, powers, contacts],
+    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null, power: powers.get(sc.id) ?? null, contact: contacts.get(sc.id) ?? null, psr: psrOf(siteOf(sc.siteId)) })),
+    [scenarios, siteOf, analyses, powers, contacts, psrOf],
   );
   const inUse = useMemo(() => scenarios.map((s) => s.siteId), [scenarios]);
   // Terrain used by each scenario, for the printed report (S10).
@@ -692,7 +709,7 @@ export default function App() {
               </div>
               <Collapse id="status-fold" open={panels.status || !statusStacked}>
                 {horizon && sky && current ? (
-                  <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} marginDeg={margin} contact={currentContact} />
+                  <Status site={site} horizon={horizon} sky={sky} metrics={current.metrics} now={now} windowEnd={windowEnd} marginDeg={margin} contact={currentContact} psr={psrOf(site)} />
                 ) : (
                   <p className="empty">{tr('Calculando…', 'Computing…')}</p>
                 )}

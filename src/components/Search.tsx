@@ -84,6 +84,7 @@ export function SearchResults({ result, picks, canAdd, onUse, onAdd }: Pick<Prop
       <td className="num">{pct(c.sunShare)}</td>
       <td className="num">{c.longestDarkH > 0 ? fmtDuration(c.longestDarkH * 3600e3) : tr('ninguna', 'none')}</td>
       <td className="num">{pct(c.earthShare)}</td>
+      <td className="num">{c.psrKm === 0 ? tr('dentro', 'inside') : c.psrKm != null ? km(c.psrKm) : c.covered ? '> 20 km' : '—'}</td>
       <td className={`num${c.slopeDeg > MAX_LANDING_SLOPE_DEG ? ' is-steep' : ''}`}>{c.slopeDeg.toFixed(0)}°</td>
       <td className="num score-cell">{c.score}</td>
     </>
@@ -97,6 +98,7 @@ export function SearchResults({ result, picks, canAdd, onUse, onAdd }: Pick<Prop
             <th>{tr('Luz solar', 'Sunlight')}</th>
             <th>{tr('Noche más larga', 'Longest night')}</th>
             <th>{tr('Enlace', 'Link')}</th>
+            <th title={tr('Distancia a la zona en sombra permanente más cercana, donde puede conservarse hielo.', 'Distance to the nearest permanently shadowed area, where ice may survive.')}>{tr('Sombra perm.', 'Perm. shadow')}</th>
             <th>{tr('Pendiente', 'Slope')}</th>
             <th>{tr('Índice', 'Index')}</th>
             <th aria-label={tr('Acciones', 'Actions')} />

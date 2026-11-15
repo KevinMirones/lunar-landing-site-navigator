@@ -34,6 +34,12 @@ const VALIDATION = ['AVGVISIB_85S_060M_201608', 'AVGVISIB_85S_060M_201608_EARTH'
   bytes: 5058 * 5058 * 2,
 }));
 if (process.argv.includes('--validation')) FILES.push(...VALIDATION);
+// Permanently shadowed regions (S16), 120 m per pixel, 7624 px, int16. Only scripts/build-psr.mjs reads it.
+const PSR = [
+  { url: `${ILLUMINATION}/LPSR_75S_120M_201608.IMG`, rel: '../server/data/published/LPSR_75S_120M_201608.IMG', bytes: 7624 * 7624 * 2 },
+  { url: `${ILLUMINATION}/LPSR_75S_120M_201608.LBL`, rel: '../server/data/published/LPSR_75S_120M_201608.LBL' },
+];
+if (process.argv.includes('--psr')) FILES.push(...PSR);
 const ATTEMPTS = 6;
 const MB = 1024 * 1024;
 const sizeOf = (p) => (existsSync(p) ? statSync(p).size : 0);

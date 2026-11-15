@@ -26,6 +26,9 @@ const picks = page.locator('.search-results tbody tr.is-pick');
 const n = await picks.count();
 check('proposes up to five points', n >= 1 && n <= 5, `picks=${n}`);
 const first = (await picks.first().innerText()).replace(/\s+/g, ' ');
+// sunlight, link and index promised by the search (cells: sun, night, link, shadow, slope, index)
+const promised = await picks.first().locator('td.num').allInnerTexts();
+const pick = [null, promised[0], promised[2], promised[5]];
 check('the best point has continuous Earth link', first.includes('100%'), first.slice(0, 120));
 check('it says how far and in which direction', /\d+(\.\d+)? (k?m) al (N|NE|E|SE|S|SO|O|NO)/.test(first), first.slice(0, 60));
 check('the current point is listed for reference', (await page.locator('.search-results tbody tr.is-origin').count()) === 1);
@@ -50,7 +53,6 @@ await ready(page);
 const rows = page.locator('table.scenarios tbody tr');
 check('adding a pick creates a second scenario', (await rows.count()) === 2);
 const added = (await rows.nth(1).innerText()).replace(/\s+/g, ' ');
-const pick = first.match(/(\d+%) .*? (\d+%) \d+° (\d+) Usar/); // sunlight, link, index promised by the search
 // what the scenario table computes for that point: its sunlight, link and index cells
 const cells = await rows.nth(1).locator('td.num').allInnerTexts();
 const got = [null, cells[0], cells[2], cells[4]];

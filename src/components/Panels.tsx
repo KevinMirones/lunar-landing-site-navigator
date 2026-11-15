@@ -7,7 +7,7 @@ import type { CommsResult } from '../lib/comms';
 import type { PowerResult } from '../lib/power';
 import { fmtWattHours } from './Power';
 import { normLon, siteMatches, type Site } from '../lib/sites';
-import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
+import { compass, deg, fetchJpl, type Psr, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
 import { Closeup } from './Panorama';
 import { Term } from './Term';
 import { WindowStrip } from './Timeline';
@@ -141,9 +141,11 @@ interface StatusProps {
   marginDeg?: number;
   /** Contact with the ground network (S09), or null without one. */
   contact?: CommsResult | null;
+  /** Nearest permanent shadow (S16); null while loading or without a server. */
+  psr?: Psr | null;
 }
 
-export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg = 0, contact = null }: StatusProps) {
+export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg = 0, contact = null, psr = null }: StatusProps) {
   const tr = useTr();
   const lang = useLang();
   const sunEv = nextEvent(metrics.sunIntervals, now, windowEnd);
@@ -203,6 +205,27 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
               ? tr('Sin conexión con el servidor de terreno: se usa una Luna lisa.', 'Terrain server unreachable: using a smooth Moon.')
               : tr('Fuera de la cobertura de terreno (80°S a 90°S): se usa una Luna lisa.', 'Outside terrain coverage (80°S to 90°S): using a smooth Moon.')}
         </p>
+        {psr && (
+          <p className="status-psr">
+            {!psr.covered ? (
+              <>
+                <Term id="shadow">{tr('Sombra permanente', 'Permanent shadow')}</Term>: {tr('sin dato fuera de 80°S a 90°S.', 'no data outside 80°S to 90°S.')}
+              </>
+            ) : psr.inside ? (
+              <>
+                {tr('Este punto está en', 'This point lies in')} <Term id="shadow" />.
+              </>
+            ) : psr.distanceKm !== null ? (
+              <>
+                <Term id="shadow">{tr('Sombra permanente', 'Permanent shadow')}</Term> {tr('más cercana:', 'nearest:')} {km(psr.distanceKm)} {tr('al', 'to the')} {compass(psr.bearingDeg ?? 0, lang)}.
+              </>
+            ) : (
+              <>
+                {tr('Ninguna zona en', 'No area in')} <Term id="shadow" /> {tr('a menos de 50 km.', 'within 50 km.')}
+              </>
+            )}
+          </p>
+        )}
       </header>
 
       <section className="body-card sun">
@@ -275,7 +298,7 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
             </>
           )}
         </dl>
-        <Insights site={site} horizon={horizon} metrics={metrics} />
+        <Insights site={site} horizon={horizon} metrics={metrics} psr={psr} />
         <div data-level="expert">
           <JplCheck site={site} now={now} />
         </div>
@@ -284,7 +307,7 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
   );
 }
 
-function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; metrics: Metrics }) {
+function Insights({ site, horizon, metrics, psr }: { site: Site; horizon: Horizon; metrics: Metrics; psr: Psr | null }) {
   const tr = useTr();
   const lang = useLang();
   const items: React.ReactNode[] = [];
@@ -347,6 +370,16 @@ function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; me
     );
   }
 
+  // Science and engineering in one sentence (S16): light for the panels, shadow for the ice.
+  if (psr?.covered && !psr.inside && psr.distanceKm !== null && psr.distanceKm <= 5 && metrics.sunShare >= 0.8) {
+    items.push(
+      tr(
+        `Luz el ${pct(metrics.sunShare)} de la misión y sombra permanente a ${km(psr.distanceKm)}: energía y ciencia al alcance de un rover.`,
+        `Light ${pct(metrics.sunShare)} of the mission and permanent shadow ${km(psr.distanceKm)} away: power and science within a rover's reach.`,
+      ),
+    );
+  }
+
   return (
     <ul className="insights">
       {items.map((t, i) => (
@@ -401,6 +434,8 @@ export interface ScenarioRow {
   power: PowerResult | null;
   /** Contact with the ground network (S09); null without one. */
   contact: CommsResult | null;
+  /** Nearest permanent shadow (S16); null while loading. */
+  psr: Psr | null;
 }
 
 interface CompareProps {
@@ -438,6 +473,7 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
   const mark = (cond: boolean) => (cond && best.n > 1 ? 'is-best' : '');
   const spanDays = Math.round(spanMs / 86400e3);
   const withContact = rows.some((r) => r.contact);
+  const withPsr = rows.some((r) => r.psr?.covered);
 
   return (
     <div className="compare-scroll">
@@ -461,6 +497,7 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
             <th>{tr('Enlace', 'Link')}</th>
             <th data-level="expert">{tr('Ambos', 'Both')}</th>
             <th>{tr('Índice', 'Index')}</th>
+            {withPsr && <th title={tr('Distancia a la zona en sombra permanente más cercana, donde puede conservarse hielo.', 'Distance to the nearest permanently shadowed area, where ice may survive.')}>{tr('Sombra permanente', 'Permanent shadow')}</th>}
             {withContact && (
               <th data-level="expert" title={tr('Horas al día con enlace y alguna estación viendo la Luna.', 'Hours a day with a link and some station seeing the Moon.')}>
                 {tr('Contacto', 'Contact')}
@@ -473,7 +510,7 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ scenario: sc, site, metrics: m, power: p, contact: c }) => (
+          {rows.map(({ scenario: sc, site, metrics: m, power: p, contact: c, psr: z }) => (
             <tr key={sc.id} className={sc.id === activeId ? 'is-selected' : ''} onClick={() => onActivate(sc.id)}>
               <th scope="row">
                 <button type="button" onClick={() => onActivate(sc.id)} aria-current={sc.id === activeId}>
@@ -499,6 +536,7 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
               <td className={`num ${m ? mark(m.earthShare === best.earth) : ''}`}>{m ? pct(m.earthShare) : '—'}</td>
               <td data-level="expert" className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
               <td className={`num score-cell ${m ? mark(m.score === best.score) : ''}`}>{m ? m.score : '—'}</td>
+              {withPsr && <td className="num psr-cell">{!z?.covered ? '—' : z.inside ? tr('dentro', 'inside') : z.distanceKm !== null ? km(z.distanceKm) : '> 50 km'}</td>}
               {withContact && (
                 <td data-level="expert" className={`num contact-cell ${c ? mark(c.contactHoursPerDay === best.contact) : ''}`}>
                   {c ? `${c.contactHoursPerDay.toFixed(1)} ${tr('h/día', 'h/day')}` : '—'}

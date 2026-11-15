@@ -1943,3 +1943,10 @@ button.toggle.focus[aria-pressed='true'] {
   margin: 12px 20px 4px 24px;
   height: 32px;
 }
+
+/* ---------- permanent shadow (S16) ---------- */
+.status-site .status-psr {
+  margin-top: 8px;
+  color: var(--dust);
+  max-width: 52ch;
+}

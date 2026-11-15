@@ -10,6 +10,7 @@
   "scripts": {
     "fetch-data": "node scripts/fetch-data.mjs",
     "precompute": "node scripts/precompute-horizons.mjs",
+    "build-psr": "node scripts/build-psr.mjs",
     "validate": "node scripts/validate-illumination.mjs",
     "dev": "concurrently -k -n api,web -c cyan,yellow \"node --watch server/index.js\" \"vite\"",
     "dev:lan": "concurrently -k -n api,web -c cyan,yellow \"node --watch server/index.js\" \"vite --host\"",

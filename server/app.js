@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { buildHeightmap, demAvailable, demResolutions, resolutionAt } from './dem.js';
 import { computeHorizon, serializeHorizon, COVERAGE_MAX_LAT } from './horizon.js';
 import { keyOf, loadPrecomputed } from './precomputed.js';
+import { nearestPsr, psrAvailable } from './psr.js';
 import { createRateLimiter, rateLimit } from './rateLimit.js';
 import { SEARCH_GRIDS, runSearch } from './search.js';
 
@@ -85,7 +86,15 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, dem: demAvailable(), resolutionsM: demResolutions(), precomputed: horizons.size, coverageMaxLat: COVERAGE_MAX_LAT });
+    res.json({ ok: true, dem: demAvailable(), resolutionsM: demResolutions(), precomputed: horizons.size, coverageMaxLat: COVERAGE_MAX_LAT, psr: psrAvailable() });
+  });
+
+  // Distance to the nearest permanently shadowed region (S16).
+  app.get('/api/psr', (req, res) => {
+    const lat = num(req.query.lat, -90, 90);
+    const lon = num(req.query.lon, -360, 360);
+    if (lat === null || lon === null) return res.status(400).json({ error: 'lat (-90..90) and lon (-360..360) are required' });
+    res.set('Cache-Control', 'public, max-age=86400').json(nearestPsr(lat, ((((lon + 180) % 360) + 360) % 360) - 180));
   });
 
   const horizonCache = new Map();
