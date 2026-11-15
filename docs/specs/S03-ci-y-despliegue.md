@@ -48,12 +48,13 @@ Los pasos 1 a 3 necesitan las cuentas del equipo.
 
 1. `npm ci`
 2. `npm run typecheck`
-3. `npm test`
-4. `npm run build`
-5. `npm run docs:check`
-6. `npm run e2e`, cuando exista ([S15](S15-pruebas-de-navegador.md)).
+3. `npm run fetch-data`, con el DEM guardado en caché entre ejecuciones, para no depender cada vez del servidor de NASA. Si falla, la ejecución sigue.
+4. `npm test`
+5. `npm run build`
+6. `npm run docs:check`
+7. `npm run e2e` ([S15](S15-pruebas-de-navegador.md)).
 
-Las pruebas de terreno se saltan solas si el DEM no está. Con el DEM en el repositorio dejan de saltarse.
+Las pruebas de terreno y las de navegador se saltan solas si el DEM no está.
 
 ### Pruebas de tiempo
 
