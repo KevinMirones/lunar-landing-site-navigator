@@ -8,12 +8,14 @@ import {
   analysisKey,
   analyzeScenario,
   duplicateScenario,
+  gridFor,
   maxSpanMs,
   removeScenario,
   updateScenario,
   type Scenario,
   type ScenarioAnalysis,
 } from './lib/scenario';
+import { DEFAULT_POWER, analyzePower, encodePower, type PowerConfig, type PowerResult } from './lib/power';
 import { fetchSearch, rankCells, type Criterion, type SearchCell, type SearchResult } from './lib/search';
 import { bestDates, dailyShares, frameSeries, siteSeries, skyAt, windowScores, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
@@ -24,6 +26,7 @@ import { Globe } from './components/Globe';
 import { BestDates, Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
 import { PolarMap } from './components/PolarMap';
+import { Power } from './components/Power';
 import { SearchControls, SearchResults, whereFrom, type SearchStatus } from './components/Search';
 import { Timeline } from './components/Timeline';
 import { Wordmark } from './components/Wordmark';
@@ -34,7 +37,7 @@ const SPEEDS = [0.5, 2, 6]; // mission days per second
 const FALLBACK_SITE = CATALOG[0];
 const CALENDAR_DAYS = 366;
 // Which panels are open. Purely visual: closing one never stops its computations.
-const PANELS = { sites: true, status: true, hero: true, when: true, compare: true, calendar: true };
+const PANELS = { sites: true, status: true, hero: true, when: true, compare: true, calendar: true, power: true };
 type Panel = keyof typeof PANELS;
 
 type LoadedHorizon = Horizon & { offline?: boolean };
@@ -64,6 +67,7 @@ function readLink() {
     lang: state.lang ?? ('es' as Lang),
     view: state.view ?? (activeSite.lat <= -80 ? ('polar' as const) : ('globe' as const)),
     mode: state.mode ?? ('sun' as const),
+    power: state.power ?? DEFAULT_POWER,
     damaged: problems.length > 0,
   };
 }
@@ -105,6 +109,8 @@ export default function App() {
 
   const [mapView, setMapView] = useState<'polar' | 'globe'>(boot.view);
   const [mapMode, setMapMode] = useState<'sun' | 'earth'>(boot.mode);
+  /** One lander for the whole comparison (S08): what changes between rows is the site and the date. */
+  const [power, setPower] = useState<PowerConfig>(boot.power);
   const [linkDamaged, setLinkDamaged] = useState(boot.damaged);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [panels, setPanels] = useStoredState('lumina.panels', PANELS);
@@ -171,6 +177,16 @@ export default function App() {
     return out;
   }, [scenarios, siteOf, horizons]);
   const current = analyses.get(active.id);
+  // Energy and battery of every scenario with the same lander (S08). The ephemeris grid is cached.
+  const powers = useMemo(() => {
+    const out = new Map<string, PowerResult>();
+    for (const sc of scenarios) {
+      const a = analyses.get(sc.id);
+      if (a) out.set(sc.id, analyzePower(a.series, frameSeries(gridFor(sc)), power));
+    }
+    return out;
+  }, [scenarios, analyses, power]);
+  const currentPower = powers.get(active.id) ?? null;
   const horizon = horizons[horizonKey(site, mast)];
 
   // Twelve months of daily conditions for the active site.
@@ -321,8 +337,9 @@ export default function App() {
         lang,
         view: mapView,
         mode: mapMode,
+        power: encodePower(power) === encodePower(DEFAULT_POWER) ? undefined : power,
       })}`,
-    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode],
+    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode, power],
   );
   useEffect(() => {
     if (playing) return; // the address waits until playback stops
@@ -393,8 +410,8 @@ export default function App() {
   );
 
   const rows: ScenarioRow[] = useMemo(
-    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null })),
-    [scenarios, siteOf, analyses],
+    () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null, power: powers.get(sc.id) ?? null })),
+    [scenarios, siteOf, analyses, powers],
   );
   const inUse = useMemo(() => scenarios.map((s) => s.siteId), [scenarios]);
   const span = maxSpanMs(scenarios);
@@ -590,6 +607,15 @@ export default function App() {
                 ) : (
                   <p className="empty">{tr('Calculando…', 'Computing…')}</p>
                 )}
+                <section className="status-extra" data-level="expert" aria-labelledby="power-title">
+                  <div className="block-head">
+                    <h3 id="power-title">{tr('Energía', 'Power')}</h3>
+                    <SectionToggle open={panels.power} controls="power-body" label={tr('la energía', 'the power block')} onToggle={() => togglePanel('power')} />
+                  </div>
+                  <Collapse id="power-body" open={panels.power}>
+                    <Power config={power} onChange={setPower} result={currentPower} landing={landing} now={now} />
+                  </Collapse>
+                </section>
               </Collapse>
             </div>
             <button type="button" className="drawer-rail" aria-expanded={panels.status} aria-controls="drawer-status" aria-label={tr('Mostrar el estado del sitio', 'Show the site status')} title={tr('Mostrar el estado del sitio', 'Show the site status')} onClick={() => togglePanel('status')}>
@@ -621,7 +647,7 @@ export default function App() {
           </div>
           <Collapse id="when-body" open={panels.when}>
             {current && horizon ? (
-              <Timeline series={current.series} horizon={horizon} metrics={current.metrics} now={now} onScrub={(t) => setElapsed(t - landing)} />
+              <Timeline series={current.series} horizon={horizon} metrics={current.metrics} power={currentPower} now={now} onScrub={(t) => setElapsed(t - landing)} />
             ) : (
               <p className="empty">{tr('Calculando…', 'Computing…')}</p>
             )}

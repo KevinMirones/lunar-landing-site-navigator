@@ -20,7 +20,7 @@ await rows.first().getByRole('button', { name: 'Aterrizar este día' }).click();
 await ready(page);
 const scenario = (await page.locator('table.scenarios tbody tr').first().innerText()).replace(/\s+/g, ' ');
 check('applying a date moves the landing', scenario.includes(dateOf(top)), `${dateOf(top)} -> ${scenario.slice(0, 80)}`);
-const got = Number(scenario.match(/% (\d+) Duplicar/)?.[1]);
+const got = Number(await page.locator('table.scenarios tbody tr').first().locator('.score-cell').innerText());
 check('the scenario index matches the promised one within a point', Math.abs(got - index(top)) <= 1, `promised ${index(top)}, scenario ${got}`);
 
 // add another as scenario

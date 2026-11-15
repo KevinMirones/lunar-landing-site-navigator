@@ -7,8 +7,10 @@
 //      site goes by id, a custom point as "lat,lon" with up to five decimals.
 //   a  index of the active scenario      t  hours since its landing
 //   l  language    v  map view    m  map layer
+//   p  power configuration (S08), only when it differs from the example values
 //
 // Unknown parameters are ignored, so links written by a newer version still open.
+import { decodePower, encodePower, type PowerConfig } from './power';
 import { DURATIONS, MASTS, MAX_SCENARIOS, type Scenario } from './scenario';
 import { customSite, type Lang, type Site } from './sites';
 
@@ -26,6 +28,8 @@ export interface SharedState {
   lang: Lang;
   view: 'polar' | 'globe';
   mode: 'sun' | 'earth';
+  /** Left out of the link when it is the default. */
+  power?: PowerConfig;
 }
 
 const stamp = (ms: number) => new Date(ms).toISOString().slice(0, 16);
@@ -36,7 +40,7 @@ export function encode(state: SharedState): string {
     .map((sc) => `${typeof sc.site === 'string' ? sc.site : `${coord(sc.site.lat)},${coord(sc.site.lon)}`}@${stamp(sc.landing)}~${sc.durationDays}~${sc.mast}`)
     .join(';');
   // Built by hand: "@ : ; , ~" are legal in a query string and keep the link short and readable.
-  return `s=${scenarios}&a=${state.active}&t=${Math.round(state.hours * 10) / 10}&l=${state.lang}&v=${state.view}&m=${state.mode}`;
+  return `s=${scenarios}&a=${state.active}&t=${Math.round(state.hours * 10) / 10}&l=${state.lang}&v=${state.view}&m=${state.mode}${state.power ? `&p=${encodePower(state.power)}` : ''}`;
 }
 
 function parseScenario(text: string, isKnownSite: (id: string) => boolean): SharedScenario | null {
@@ -103,6 +107,13 @@ export function decode(query: string, isKnownSite: (id: string) => boolean): { s
   choice('l', 'lang', ['es', 'en']);
   choice('v', 'view', ['polar', 'globe']);
   choice('m', 'mode', ['sun', 'earth']);
+
+  const p = params.get('p');
+  if (p !== null) {
+    const power = decodePower(p);
+    if (power) state.power = power;
+    else problems.push(`power "${p.slice(0, 60)}"`);
+  }
 
   return { state, problems };
 }

@@ -51,7 +51,9 @@ const rows = page.locator('table.scenarios tbody tr');
 check('adding a pick creates a second scenario', (await rows.count()) === 2);
 const added = (await rows.nth(1).innerText()).replace(/\s+/g, ' ');
 const pick = first.match(/(\d+%) .*? (\d+%) \d+° (\d+) Usar/); // sunlight, link, index promised by the search
-const got = added.match(/mástil 2 m (\d+%) .*? (\d+%) \d+% (\d+) Duplicar/); // what the scenario table computes for that point
+// what the scenario table computes for that point: its sunlight, link and index cells
+const cells = await rows.nth(1).locator('td.num').allInnerTexts();
+const got = [null, cells[0], cells[2], cells[4]];
 check(
   'the scenario shows exactly what the search promised',
   pick && got && pick[1] === got[1] && pick[2] === got[2] && pick[3] === got[3],

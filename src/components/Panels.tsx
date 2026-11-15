@@ -3,6 +3,8 @@ import { memo, useMemo, useState } from 'react';
 import { SUN_RADIUS_KM, moonFixedVectors, siteFrame, topocentric } from '../lib/ephemeris';
 import type { Scenario } from '../lib/scenario';
 import { nextEvent, type Horizon, type Metrics, type Sky, type WindowScores } from '../lib/series';
+import type { PowerResult } from '../lib/power';
+import { fmtWattHours } from './Power';
 import { normLon, type Site } from '../lib/sites';
 import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
 import { Closeup } from './Panorama';
@@ -348,6 +350,8 @@ export interface ScenarioRow {
   site: Site;
   /** Null while the terrain horizon of the site is still loading. */
   metrics: Metrics | null;
+  /** Energy and battery with the shared lander (S08); null while loading. */
+  power: PowerResult | null;
 }
 
 interface CompareProps {
@@ -370,7 +374,16 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
     const ms = rows.map((r) => r.metrics).filter((m): m is Metrics => m !== null);
     const max = (f: (m: Metrics) => number) => Math.max(...ms.map(f));
     const min = (f: (m: Metrics) => number) => Math.min(...ms.map(f));
-    return { n: ms.length, sun: max((m) => m.sunShare), dark: min((m) => m.longestDarkMs), earth: max((m) => m.earthShare), both: max((m) => m.bothShare), score: max((m) => m.score) };
+    const ps = rows.map((r) => r.power).filter((p): p is PowerResult => p !== null);
+    return {
+      n: ms.length,
+      sun: max((m) => m.sunShare),
+      dark: min((m) => m.longestDarkMs),
+      earth: max((m) => m.earthShare),
+      both: max((m) => m.bothShare),
+      score: max((m) => m.score),
+      battery: Math.min(...ps.map((p) => p.minBatteryWh)),
+    };
   }, [rows]);
   const mark = (cond: boolean) => (cond && best.n > 1 ? 'is-best' : '');
   const spanDays = Math.round(spanMs / 86400e3);
@@ -397,11 +410,14 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
             <th>{tr('Enlace', 'Link')}</th>
             <th>{tr('Ambos', 'Both')}</th>
             <th>{tr('Índice', 'Index')}</th>
+            <th data-level="expert" title={tr('Batería mínima para sobrevivir la misión, con el módulo del bloque Energía.', 'Smallest battery that survives the mission, with the lander of the Power block.')}>
+              {tr('Batería', 'Battery')}
+            </th>
             <th aria-label={tr('Acciones', 'Actions')} />
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ scenario: sc, site, metrics: m }) => (
+          {rows.map(({ scenario: sc, site, metrics: m, power: p }) => (
             <tr key={sc.id} className={sc.id === activeId ? 'is-selected' : ''} onClick={() => onActivate(sc.id)}>
               <th scope="row">
                 <button type="button" onClick={() => onActivate(sc.id)} aria-current={sc.id === activeId}>
@@ -427,6 +443,18 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
               <td className={`num ${m ? mark(m.earthShare === best.earth) : ''}`}>{m ? pct(m.earthShare) : '—'}</td>
               <td className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
               <td className={`num score-cell ${m ? mark(m.score === best.score) : ''}`}>{m ? m.score : '—'}</td>
+              <td data-level="expert" className={`num battery-cell ${p ? mark(p.minBatteryWh === best.battery) : ''}`}>
+                {p ? (
+                  <>
+                    {fmtWattHours(p.minBatteryWh)}
+                    <span className={`survives ${p.survives ? 'ok' : 'bad'}`} title={p.survives ? tr('La batería del bloque Energía basta', 'The battery of the Power block is enough') : tr('La batería del bloque Energía no basta', 'The battery of the Power block is not enough')}>
+                      {p.survives ? tr('basta', 'enough') : tr('no basta', 'not enough')}
+                    </span>
+                  </>
+                ) : (
+                  '—'
+                )}
+              </td>
               <td className="row-actions" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
