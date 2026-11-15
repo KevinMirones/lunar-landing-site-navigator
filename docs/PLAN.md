@@ -34,6 +34,7 @@ Los tres primeros días del plan se hicieron en uno. Como referencia de ritmo: S
 | 8 | [S16](specs/S16-sombra-permanente.md) | Distancia a la sombra permanente | recortable | Mediano |
 | 9 | [S14](specs/S14-robustez-y-calidad.md) | Versión 1.0 estable | imprescindible | Mediano |
 | 10 | [Entrega](#entrega) | Vídeo, diapositivas y texto | imprescindible | — |
+| 11 | [S17](specs/S17-relieve-global.md) | Relieve y vista 3D en los sitios fuera del polo sur | recortable | Mediano, más una descarga de 531 MB para una sola persona |
 | En paralelo | [S11](specs/S11-vista-3d.md) | Paisaje 3D con sombras | recortable | Grande. La lleva Andrés desde el principio |
 
 Las imprescindibles van delante de las recortables. Si el tiempo se acaba en cualquier punto a partir del paso 5, se salta directamente a S14 y a la entrega.

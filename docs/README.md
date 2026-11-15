@@ -11,7 +11,7 @@
 
 ## Specs
 
-16 specs: 0 pendientes, 6 en curso, 10 hechas, 0 recortadas.
+17 specs: 0 pendientes, 7 en curso, 10 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
@@ -31,6 +31,7 @@
 | S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | en curso | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
 | S15 | [Pruebas de navegador en el repositorio](specs/S15-pruebas-de-navegador.md)<br>Una orden que abre la app en un navegador real y comprueba cada función, también en cada pull request. | 4 | imprescindible | en curso | [S03](specs/S03-ci-y-despliegue.md) |
 | S16 | [Distancia a la sombra permanente](specs/S16-sombra-permanente.md)<br>Cada sitio dice a qué distancia tiene la zona en sombra permanente más cercana, donde puede conservarse hielo. | 5 | recortable | hecha | [S04](specs/S04-buscador-de-puntos.md), [S07](specs/S07-validacion-y-coordenadas.md) |
+| S17 | [Relieve en toda la Luna](specs/S17-relieve-global.md)<br>Los sitios fuera del polo sur, como los del programa Apollo, tienen horizonte con relieve real y vista 3D, igual que los del polo. | 7 | recortable | en curso | [S06](specs/S06-terreno-multirresolucion.md), [S11](specs/S11-vista-3d.md), [S13](specs/S13-catalogo-y-polo-norte.md) |
 
 ## Historial del proyecto
 
