@@ -28,6 +28,8 @@ jobs:
         timeout-minutes: 15
       - run: npm test
       - run: npm run build
+      # Budget of S14: initial JavaScript under 350 KB compressed.
+      - run: npm run check:bundle
       - run: npm run docs:check
       # Browser checks against the built app (docs/specs/S15-pruebas-de-navegador.md).
       # GitHub's Ubuntu machines come with Chrome installed.

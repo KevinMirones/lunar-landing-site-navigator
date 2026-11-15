@@ -8,7 +8,7 @@
   --line-soft: #2a2b30;
   --dust: #ece7db;
   --dust-2: #aaa69b;
-  --dust-3: #77746d;
+  --dust-3: #908c83; /* 5.1:1 on the chassis, 4.6:1 on raised panels (was #77746d, 3.7:1) */
   --sun: #ffc247;
   --earth: #5db8ff;
   --alert: #ff8a6b;

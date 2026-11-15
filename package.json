@@ -15,6 +15,7 @@
     "dev": "concurrently -k -n api,web -c cyan,yellow \"node --watch server/index.js\" \"vite\"",
     "dev:lan": "concurrently -k -n api,web -c cyan,yellow \"node --watch server/index.js\" \"vite --host\"",
     "build": "tsc --noEmit && vite build",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "share": "npm run build && node server/index.js",
     "start": "node server/index.js",
     "test": "vitest run",

@@ -156,12 +156,26 @@ export function useMedia(query: string): boolean {
   return matches;
 }
 
+/**
+ * What a stored value may change of the defaults: only known keys, and only with a
+ * value of the same type. A value saved by another version, or corrupted, is ignored (S14).
+ */
+export function mergeStored<T extends object>(initial: T, stored: unknown): T {
+  const out = { ...initial };
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return out;
+  for (const k of Object.keys(initial) as Array<keyof T>) {
+    const v = (stored as Record<string, unknown>)[k as string];
+    if (typeof v === typeof initial[k]) out[k] = v as T[keyof T];
+  }
+  return out;
+}
+
 /** useState remembered in this browser. If storage is blocked, it only forgets on reload. */
 export function useStoredState<T extends object>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
     try {
       const raw = localStorage.getItem(key);
-      return raw ? { ...initial, ...JSON.parse(raw) } : initial;
+      return raw ? mergeStored(initial, JSON.parse(raw)) : initial;
     } catch {
       return initial;
     }
