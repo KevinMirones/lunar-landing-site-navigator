@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { buildHeightmap, demAvailable, demResolutions, resolutionAt } from './dem.js';
 import { computeHorizon, serializeHorizon, COVERAGE_MAX_LAT } from './horizon.js';
+import { PATCH_SIZES_KM, buildPatch, loadPrecomputedPatches, patchKey } from './patch.js';
 import { keyOf, loadPrecomputed } from './precomputed.js';
 import { nearestPsr, psrAvailable } from './psr.js';
 import { createRateLimiter, rateLimit } from './rateLimit.js';
@@ -66,11 +67,12 @@ export async function horizonsAzEl(command, lat, lon, t) {
 }
 
 /**
- * Builds the Express app. `jpl` and `horizons` (the precomputed horizons) can be
- * replaced in tests, so they need neither the network nor the files on disk.
+ * Builds the Express app. `jpl`, `horizons` and `patches` (the precomputed
+ * horizons and terrain patches) can be replaced in tests, so they need neither
+ * the network nor the files on disk.
  * Behind a reverse proxy set TRUST_PROXY=1 so the rate limit sees the real client address.
  */
-export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = loadPrecomputed() } = {}) {
+export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = loadPrecomputed(), patches = loadPrecomputedPatches() } = {}) {
   const app = express();
   app.disable('x-powered-by');
   if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
@@ -130,6 +132,40 @@ export function createApp({ jpl = horizonsAzEl, jplPerMinute = 30, horizons = lo
         'X-Heightmap-Half-Extent-Km': String(HEIGHTMAP_HALF_EXTENT_KM),
       })
       .send(heightmap);
+  });
+
+  // S11: terrain around a site for the 3D view.
+  const patchCache = new Map();
+  app.get('/api/patch', (req, res) => {
+    const lat = num(req.query.lat, -90, 90);
+    const lon = num(req.query.lon, -360, 360);
+    const size = Number(req.query.size);
+    if (lat === null || lon === null || !PATCH_SIZES_KM.includes(size)) {
+      return res.status(400).json({ error: `lat (-90..90), lon (-360..360) and size (${PATCH_SIZES_KM.join(' or ')} km) are required` });
+    }
+    if (lat > COVERAGE_MAX_LAT) return res.status(400).json({ error: 'The 3D view needs real terrain: the point must lie between 80°S and 90°S.' });
+    const key = patchKey(lat, lon, size);
+    let patch = patchCache.get(key);
+    if (!patch) {
+      // A patch computed beforehand wins when its terrain is finer than what is installed here.
+      const pre = patches.get(key);
+      const here = demAvailable() ? (resolutionAt(lat, lon) ?? Infinity) : Infinity;
+      if (pre && pre.resolutionM < here) patch = { ...pre, precomputed: true };
+      else if (demAvailable()) patch = buildPatch(lat, lon, size);
+      else return res.status(503).json({ error: 'DEM not installed. Run: npm run fetch-data' });
+      if (patchCache.size > 64) patchCache.delete(patchCache.keys().next().value);
+      patchCache.set(key, patch);
+    }
+    res
+      .set({
+        'Content-Type': 'application/octet-stream',
+        'Cache-Control': 'public, max-age=86400',
+        'X-Patch-Size-Km': String(patch.sizeKm),
+        'X-Patch-Vertices': String(patch.vertices),
+        'X-Patch-Resolution-M': String(patch.resolutionM),
+        ...(patch.precomputed ? { 'X-Patch-Precomputed': '1' } : {}),
+      })
+      .send(Buffer.from(patch.data.buffer, patch.data.byteOffset, patch.data.byteLength));
   });
 
   // Live cross-check against NASA/JPL Horizons for one site and instant.

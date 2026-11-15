@@ -11,7 +11,7 @@
 
 ## Specs
 
-16 specs: 1 pendiente, 5 en curso, 10 hechas, 0 recortadas.
+16 specs: 0 pendientes, 6 en curso, 10 hechas, 0 recortadas.
 
 | ID | Spec | Día | Prioridad | Estado | Depende de |
 | --- | --- | --- | --- | --- | --- |
@@ -25,7 +25,7 @@
 | S08 | [Modelo de energía y batería](specs/S08-energia-y-bateria.md)<br>Potencia, energía diaria y batería necesaria para sobrevivir la noche más larga. | 4 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S09 | [Ventanas de contacto reales](specs/S09-ventanas-de-contacto.md)<br>Enlace con margen de elevación y con las estaciones de tierra que ven la Luna en cada momento. | 4 | imprescindible | hecha | [S01](specs/S01-escenarios.md) |
 | S10 | [Exportación de ventanas e informe](specs/S10-exportacion.md)<br>Descargar las ventanas en CSV e imprimir un informe de una página con la comparación. | 4 | recortable | en curso | [S01](specs/S01-escenarios.md), [S08](specs/S08-energia-y-bateria.md), [S09](specs/S09-ventanas-de-contacto.md) |
-| S11 | [Vista 3D del terreno](specs/S11-vista-3d.md)<br>Ver el paisaje real alrededor del sitio, con sus sombras y el Sol y la Tierra en el cielo. | 5 | recortable | pendiente | [S06](specs/S06-terreno-multirresolucion.md) |
+| S11 | [Vista 3D del terreno](specs/S11-vista-3d.md)<br>Ponerse en el sitio, a la altura del mástil, y mirar alrededor mientras el Sol y la Tierra se mueven sobre el relieve real. | 5 | recortable | en curso | [S06](specs/S06-terreno-multirresolucion.md) |
 | S12 | [Modo educativo](specs/S12-modo-educativo.md)<br>Un recorrido guiado de cinco pasos, un glosario y una vista sencilla para quien no es especialista. | 5 | imprescindible | en curso | [S01](specs/S01-escenarios.md) |
 | S13 | [Catálogo ampliado y polo norte](specs/S13-catalogo-y-polo-norte.md)<br>Más sitios históricos y futuros, con buscador, y terreno real también en el polo norte. | 5 | recortable | hecha | [S07](specs/S07-validacion-y-coordenadas.md) |
 | S14 | [Robustez y calidad](specs/S14-robustez-y-calidad.md)<br>Que funcione en cualquier equipo y navegador, con teclado, y sin sorpresas en la demostración. | 6 | imprescindible | en curso | [S01](specs/S01-escenarios.md), [S02](specs/S02-enlaces-compartibles.md), [S03](specs/S03-ci-y-despliegue.md), [S15](specs/S15-pruebas-de-navegador.md) |
@@ -38,7 +38,8 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
-| 2026-11-15 | [Specs S08 a S16 implementadas, salvo S11](historial/2026-11-15-13-specs-s08-a-s16.md)<br>Energía, contacto, exportación, modo educativo, catálogo, sombra permanente, robustez y pruebas de navegador, en ramas apiladas. | hito |
+| 2026-11-15 | [Specs S08 a S16 implementadas, salvo S11](historial/2026-11-15-14-specs-s08-a-s16.md)<br>Energía, contacto, exportación, modo educativo, catálogo, sombra permanente, robustez y pruebas de navegador, en ramas apiladas. | hito |
+| 2026-11-15 | [La vista 3D se abre desde el panorama](historial/2026-11-15-13-vista-3d.md)<br>S11 pasa de una pestaña del mapa a una vista en primera persona a pantalla completa, con el relieve real y el Sol y la Tierra en movimiento. Fase 1 implementada. | decisión |
 | 2026-11-14 | [Todas las specs pendientes, listas para implementar](historial/2026-11-14-12-specs-completas-y-plan.md)<br>S03 y S08 a S14 revisadas contra el código real, dos specs nuevas (S15 y S16) y un plan con orden, reparto y reglas. | decisión |
 | 2026-11-14 | [Paneles plegables, mapa ampliado y logo nuevo](historial/2026-11-14-11-paneles-plegables.md)<br>Cada sección se pliega y recuerda su estado; un botón deja el mapa a todo el ancho. Mezclado con S01 a S07 y ya en main. | hito |
 | 2026-11-14 | [Specs S06 y S07 implementadas](historial/2026-11-14-10-specs-s06-y-s07.md)<br>Terreno de 20 a 80 m, horizontes precalculados y validación contra los mapas de NASA y Gläser et al. | hito |
