@@ -123,7 +123,11 @@ export function skyAt(lat: number, lon: number, h: Horizon, sunV: Vec3, earthV: 
   };
 }
 
-export function siteSeries(lat: number, lon: number, h: Horizon, fs: FrameSeries): SiteSeries {
+/**
+ * `earthMarginDeg` (S09) raises the horizon for Earth only: the link then needs half
+ * of Earth's disc that many degrees above the terrain. 0 leaves everything as before.
+ */
+export function siteSeries(lat: number, lon: number, h: Horizon, fs: FrameSeries, earthMarginDeg = 0): SiteSeries {
   const n = fs.n;
   const out: SiteSeries = {
     t0: fs.t0,
@@ -144,7 +148,7 @@ export function siteSeries(lat: number, lon: number, h: Horizon, fs: FrameSeries
     out.sunFrac[i] = sky.sun.frac;
     out.earthEl[i] = sky.earth.el;
     out.earthAz[i] = sky.earth.az;
-    out.earthFrac[i] = sky.earth.frac;
+    out.earthFrac[i] = earthMarginDeg > 0 ? discFraction(h, sky.earth.az, sky.earth.el - earthMarginDeg, sky.earth.radius) : sky.earth.frac;
   }
   return out;
 }

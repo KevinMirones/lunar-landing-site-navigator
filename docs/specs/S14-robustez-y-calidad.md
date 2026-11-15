@@ -1,7 +1,7 @@
 ---
 id: S14
 titulo: Robustez y calidad
-estado: pendiente
+estado: en curso
 dia: 6
 prioridad: imprescindible
 depende: S01, S02, S03, S15
@@ -13,6 +13,26 @@ resumen: Que funcione en cualquier equipo y navegador, con teclado, y sin sorpre
 ## Problema
 
 Casi todo se ha probado en un solo portátil con un solo navegador. La demostración puede hacerse en otro equipo, con un proyector o con mala conexión. El 14 de noviembre ya apareció el primer caso: una prueba de tiempos que pasaba en un portátil falló en otro (resuelto en [S03](S03-ci-y-despliegue.md)).
+
+## Estado
+
+La parte de código está hecha desde el 15 de noviembre y comprobada con [quality.test.js](../../tests/quality.test.js) (13 pruebas) y en el navegador con [s14-robustez.mjs](../../e2e/s14-robustez.mjs) (11 comprobaciones):
+
+- **Rendimiento adaptativo.** Si 8 fotogramas seguidos promedian más de 33 ms, el mapa de sombras baja primero la resolución del lienzo y después pasa de 150 a 90 pasos de rayo, más largos, con el mismo alcance (unos 456 km). Una pausa de 1.5 s devuelve la calidad completa. Con la CPU del navegador ralentizada, la reproducción baja la calidad y la pausa la recupera.
+- **Teclado en el mapa polar:** flechas para desplazar, `+` y `−` para el zoom y `0` para ver todo el polo, con un nombre accesible que lo explica.
+- **Contraste.** El texto terciario pasa de `#77746d` (3.7:1) a `#908c83`: 5.1:1 sobre el chasis y 4.6:1 sobre los paneles elevados. Una prueba mide los tres tonos de texto sobre los tres fondos.
+- **Estado guardado corrupto o de otra versión:** se ignora lo que no encaje, clave a clave.
+- **Sin servidor a mitad de sesión:** la app sigue con una Luna lisa y lo dice.
+- **Presupuesto de JavaScript:** `npm run check:bundle`, también en la integración continua. Hoy, 271 KB comprimidos de 350.
+
+Falta, y es trabajo a mano:
+
+1. La lista de 20 acciones en dos equipos, en la versión compilada (criterios 1 y 2).
+2. Lighthouse en accesibilidad (criterio 3).
+3. Chrome, Edge, Firefox y Safari, un móvil y un proyector a 1280 × 720.
+4. Los fotogramas por segundo en una gráfica integrada (criterio 4).
+5. La carga inicial en red local y el percentil 95 del horizonte (criterio 5).
+6. `npm run e2e` contra la dirección pública, cuando exista (criterio 6).
 
 ## Qué verá el usuario
 

@@ -29,16 +29,16 @@ Hecho y probado:
 - Cabeceras de seguridad y política de contenido, comprobadas con la app compilada.
 - [app.js](../../server/app.js) separa la creación de la app del arranque, para poder probar la API.
 - Ajustes de despliegue documentados en el [README](../../README.md).
+- Pruebas de tiempo fuera de `npm test`, con `npm run test:perf` ([Pruebas de tiempo](#pruebas-de-tiempo)). Comprobado en el segundo portátil: `npm test` pasa (118 pruebas, 5 omitidas sin mallas finas) y `npm run test:perf` falla allí por 633 ms frente a 300 ms, como se espera en un equipo más lento.
 
 Falta, en este orden:
 
-1. Sacar las pruebas de tiempo de `npm test` (ver [Pruebas de tiempo](#pruebas-de-tiempo)). Hoy `npm test` falla en un equipo lento.
-2. Comprobar en la pestaña Actions de GitHub que el flujo termina en verde. El repositorio es privado y no se pudo comprobar desde fuera.
-3. Confirmar la decisión sobre el DEM (ver [Datos en el repositorio](#datos-en-el-repositorio)).
-4. Desplegar (ver [Despliegue](#despliegue)) y poner la dirección en el README.
-5. Opcional: la [copia estática de respaldo](#copia-estática-de-respaldo).
+1. Comprobar en la pestaña Actions de GitHub que el flujo termina en verde. El repositorio es privado y no se pudo comprobar desde fuera.
+2. Confirmar la decisión sobre el DEM (ver [Datos en el repositorio](#datos-en-el-repositorio)).
+3. Desplegar (ver [Despliegue](#despliegue)) y poner la dirección en el README.
+4. Opcional: la [copia estática de respaldo](#copia-estática-de-respaldo).
 
-Los pasos 3 y 4 necesitan las cuentas del equipo.
+Los pasos 1 a 3 necesitan las cuentas del equipo.
 
 ## Diseño
 
@@ -48,12 +48,13 @@ Los pasos 3 y 4 necesitan las cuentas del equipo.
 
 1. `npm ci`
 2. `npm run typecheck`
-3. `npm test`
-4. `npm run build`
-5. `npm run docs:check`
-6. `npm run e2e`, cuando exista ([S15](S15-pruebas-de-navegador.md)).
+3. `npm run fetch-data`, con el DEM guardado en caché entre ejecuciones, para no depender cada vez del servidor de NASA. Si falla, la ejecución sigue.
+4. `npm test`
+5. `npm run build`
+6. `npm run docs:check`
+7. `npm run e2e` ([S15](S15-pruebas-de-navegador.md)).
 
-Las pruebas de terreno se saltan solas si el DEM no está. Con el DEM en el repositorio dejan de saltarse.
+Las pruebas de terreno y las de navegador se saltan solas si el DEM no está.
 
 ### Pruebas de tiempo
 

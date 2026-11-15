@@ -10,13 +10,17 @@
   "scripts": {
     "fetch-data": "node scripts/fetch-data.mjs",
     "precompute": "node scripts/precompute-horizons.mjs",
+    "build-psr": "node scripts/build-psr.mjs",
     "validate": "node scripts/validate-illumination.mjs",
     "dev": "concurrently -k -n api,web -c cyan,yellow \"node --watch server/index.js\" \"vite\"",
     "dev:lan": "concurrently -k -n api,web -c cyan,yellow \"node --watch server/index.js\" \"vite --host\"",
     "build": "tsc --noEmit && vite build",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "share": "npm run build && node server/index.js",
     "start": "node server/index.js",
     "test": "vitest run",
+    "test:perf": "node scripts/test-perf.mjs",
+    "e2e": "node e2e/run.mjs",
     "typecheck": "tsc --noEmit",
     "docs:index": "node scripts/build-docs-index.mjs",
     "docs:check": "node scripts/build-docs-index.mjs --check"
@@ -37,6 +41,7 @@
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.3.0",
     "concurrently": "^10.0.7",
+    "playwright-core": "^1.65.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"

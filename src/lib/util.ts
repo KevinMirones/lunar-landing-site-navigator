@@ -88,6 +88,25 @@ export async function fetchHorizon(lat: number, lon: number, mastM: number): Pro
   }
 }
 
+/** Distance to the nearest permanently shadowed region (S16), from /api/psr. */
+export interface Psr {
+  /** False outside 80°S to 90°S, or when the server has no shadow map. */
+  covered: boolean;
+  inside: boolean;
+  /** Null when nothing lies within 50 km. */
+  distanceKm: number | null;
+  bearingDeg: number | null;
+}
+
+export async function fetchPsr(lat: number, lon: number): Promise<Psr | null> {
+  try {
+    const r = await fetch(`/api/psr?lat=${lat}&lon=${lon}`);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null; // no server: the line is left out
+  }
+}
+
 export interface Heightmap {
   /** Heights in km, row 0 = top (lon 0 up, 90E right). */
   data: Float32Array;
@@ -137,12 +156,26 @@ export function useMedia(query: string): boolean {
   return matches;
 }
 
+/**
+ * What a stored value may change of the defaults: only known keys, and only with a
+ * value of the same type. A value saved by another version, or corrupted, is ignored (S14).
+ */
+export function mergeStored<T extends object>(initial: T, stored: unknown): T {
+  const out = { ...initial };
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return out;
+  for (const k of Object.keys(initial) as Array<keyof T>) {
+    const v = (stored as Record<string, unknown>)[k as string];
+    if (typeof v === typeof initial[k]) out[k] = v as T[keyof T];
+  }
+  return out;
+}
+
 /** useState remembered in this browser. If storage is blocked, it only forgets on reload. */
 export function useStoredState<T extends object>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
     try {
       const raw = localStorage.getItem(key);
-      return raw ? { ...initial, ...JSON.parse(raw) } : initial;
+      return raw ? mergeStored(initial, JSON.parse(raw)) : initial;
     } catch {
       return initial;
     }

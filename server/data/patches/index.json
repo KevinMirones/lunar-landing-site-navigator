@@ -1,0 +1,218 @@
+[
+ {
+  "site": "ridge",
+  "lat": -89.4398,
+  "lon": -137.17,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "ridge-8km.bin"
+ },
+ {
+  "site": "ridge",
+  "lat": -89.4398,
+  "lon": -137.17,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "ridge-64km.bin"
+ },
+ {
+  "site": "shackleton-rim",
+  "lat": -89.6866,
+  "lon": -162.81,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "shackleton-rim-8km.bin"
+ },
+ {
+  "site": "shackleton-rim",
+  "lat": -89.6866,
+  "lon": -162.81,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "shackleton-rim-64km.bin"
+ },
+ {
+  "site": "shackleton-floor",
+  "lat": -89.66,
+  "lon": 129.2,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "shackleton-floor-8km.bin"
+ },
+ {
+  "site": "shackleton-floor",
+  "lat": -89.66,
+  "lon": 129.2,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "shackleton-floor-64km.bin"
+ },
+ {
+  "site": "de-gerlache-rim",
+  "lat": -88.67,
+  "lon": -68,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "de-gerlache-rim-8km.bin"
+ },
+ {
+  "site": "de-gerlache-rim",
+  "lat": -88.67,
+  "lon": -68,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "de-gerlache-rim-64km.bin"
+ },
+ {
+  "site": "cn-shackleton",
+  "lat": -88.8,
+  "lon": 123.4,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "cn-shackleton-8km.bin"
+ },
+ {
+  "site": "cn-shackleton",
+  "lat": -88.8,
+  "lon": 123.4,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 20,
+  "file": "cn-shackleton-64km.bin"
+ },
+ {
+  "site": "malapert",
+  "lat": -85.96703,
+  "lon": -2.2392,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "malapert-8km.bin"
+ },
+ {
+  "site": "malapert",
+  "lat": -85.96703,
+  "lon": -2.2392,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "malapert-64km.bin"
+ },
+ {
+  "site": "haworth",
+  "lat": -86.8,
+  "lon": -22,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "haworth-8km.bin"
+ },
+ {
+  "site": "haworth",
+  "lat": -86.8,
+  "lon": -22,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "haworth-64km.bin"
+ },
+ {
+  "site": "mouton-viper",
+  "lat": -85.42,
+  "lon": 31.6,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "mouton-viper-8km.bin"
+ },
+ {
+  "site": "mouton-viper",
+  "lat": -85.42,
+  "lon": 31.6,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "mouton-viper-64km.bin"
+ },
+ {
+  "site": "nobile",
+  "lat": -85.43,
+  "lon": 37,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "nobile-8km.bin"
+ },
+ {
+  "site": "nobile",
+  "lat": -85.43,
+  "lon": 37,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "nobile-64km.bin"
+ },
+ {
+  "site": "im2",
+  "lat": -84.7906,
+  "lon": 29.1957,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "im2-8km.bin"
+ },
+ {
+  "site": "im2",
+  "lat": -84.7906,
+  "lon": 29.1957,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "im2-64km.bin"
+ },
+ {
+  "site": "lcross",
+  "lat": -84.675,
+  "lon": -48.725,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "lcross-8km.bin"
+ },
+ {
+  "site": "lcross",
+  "lat": -84.675,
+  "lon": -48.725,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 40,
+  "file": "lcross-64km.bin"
+ },
+ {
+  "site": "im1",
+  "lat": -80.13,
+  "lon": 1.44,
+  "sizeKm": 8,
+  "vertices": 257,
+  "resolutionM": 80,
+  "file": "im1-8km.bin"
+ },
+ {
+  "site": "im1",
+  "lat": -80.13,
+  "lon": 1.44,
+  "sizeKm": 64,
+  "vertices": 257,
+  "resolutionM": 80,
+  "file": "im1-64km.bin"
+ }
+]

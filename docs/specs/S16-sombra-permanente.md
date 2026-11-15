@@ -1,7 +1,7 @@
 ---
 id: S16
 titulo: Distancia a la sombra permanente
-estado: pendiente
+estado: hecha
 dia: 5
 prioridad: recortable
 depende: S04, S07
@@ -15,6 +15,28 @@ resumen: Cada sitio dice a qué distancia tiene la zona en sombra permanente má
 La consigna empieza diciendo que elegir sitio y fecha exige equilibrar las necesidades de ciencia y de ingeniería, y que el polo sur interesa por el hielo. El guion lo repite: "Ciencia quiere el hielo del fondo; ingeniería quiere la luz de la cresta. Aquí negocian con los mismos números." Pero la herramienta solo da números de ingeniería: luz, enlace, noche más larga. No hay ninguna cifra que diga qué gana la ciencia en cada sitio.
 
 Esta spec no estaba en el plan original. Se añade como recortable porque cubre ese hueco con datos que NASA ya publica.
+
+## Resultado
+
+Hecha el 15 de noviembre, sin la capa opcional del mapa polar.
+
+| Criterio | Resultado |
+| --- | --- |
+| 1. Fondo de Shackleton en sombra permanente | Sí |
+| 2. Connecting Ridge fuera, con distancia | A 2.3 km al norte |
+| 3. La celda devuelta es la más cercana | Comprobado contra una búsqueda exhaustiva en diez puntos |
+| 4. Apollo 11 sin dato | Sí |
+| 5. Distancia en la tabla y en el buscador | Sí, también en la vista sencilla |
+| 6. Tamaño y memoria | Máscara de 3.06 MB (unos 210 KB comprimida en git). El servidor con la máscara cargada ocupa 35 MB en total |
+| 7. Coste en el buscador | 40 a 50 ms para las 1257 celdas de la malla fina, frente a búsquedas de 5 a 30 s: menos del 1% |
+
+Comprobado con [psr.test.js](../../tests/psr.test.js) (6 pruebas) y en el navegador con [s16-sombra.mjs](../../e2e/s16-sombra.mjs) (12 comprobaciones).
+
+Otras cifras de los sitios del catálogo: Shackleton Rim a 2.1 km, Haworth a 1.8 km, IM-2 a 2.2 km, IM-1 a 4.7 km y la cima de Malapert a 7.9 km. Cabeus (LCROSS) está dentro, como el fondo de Shackleton.
+
+**La máscara:** [build-psr.mjs](../../scripts/build-psr.mjs) recorta el mapa de NASA a 80°S y descarta 26 237 regiones de menos de 0.1 km². Quedan 6761 regiones y 20 340 km² en sombra permanente al sur de 80°S. Se reconstruye con `npm run fetch-data -- --psr` y `npm run build-psr`.
+
+**Sin hacer:** la capa del mapa polar (opcional) y el valor precalculado para la copia estática de [S03](S03-ci-y-despliegue.md), que tampoco está hecha.
 
 ## Qué verá el usuario
 

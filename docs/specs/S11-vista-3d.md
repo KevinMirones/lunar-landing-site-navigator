@@ -14,11 +14,15 @@ resumen: Ponerse en el sitio, a la altura del mástil, y mirar alrededor mientra
 
 ## Estado
 
-**Fase 1 implementada** en la rama `feat/s11-vista-3d` (15 de noviembre de 2026). Pasa la verificación salvo `npm run e2e`, que todavía no existe ([S15](S15-pruebas-de-navegador.md)): el flujo `e2e/e2e-s11.mjs` se ejecutó con `playwright-core` instalado fuera del repositorio y pasa sus 13 comprobaciones.
+**Fase 1 implementada** en la rama `feat/s11-vista-3d` (15 de noviembre de 2026) y mezclada en `main`.
+
+**Integrada con S08 a S16** el mismo día, en la rama `integracion-s11`:
+
+- El flujo de navegador pasa a llamarse [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) y usa las utilidades comunes de [S15](S15-pruebas-de-navegador.md), así que entra en `npm run e2e`.
+- **Parches precalculados (criterio 11): hechos.** `npm run precompute` se ejecutó en un equipo con las mallas finas: 24 parches y su índice en `server/data/patches/` (3.2 MB). Los 36 horizontes que escribe el mismo script salieron idénticos a los que ya estaban.
 
 Falta:
 
-- **Parches precalculados** (criterio 11). El código está en `npm run precompute`, pero hay que ejecutarlo en el equipo que tenga las mallas finas y subir `server/data/patches/`. Mientras tanto, el servicio usa la malla instalada.
 - **Rendimiento en una gráfica integrada real** (criterio 9). Medido solo en Edge sin ventana en el portátil de desarrollo.
 - **Fase 2**, opcional.
 - La revisión de otra persona y el pull request.
@@ -127,7 +131,7 @@ Fase 2:
 ## Pruebas
 
 - **Automáticas**, en [patch.test.js](../../tests/patch.test.js) (12 pruebas) y [terrain3d.test.ts](../../tests/terrain3d.test.ts) (13 pruebas): el criterio 1, la orientación del parche, la elección entre parche precalculado e instalado, los errores 400, la conversión de azimut y elevación a dirección, el anillo de cumbres frente al perfil y la exageración (criterio 6). En la fase 2, el nuevo valor de `v` en [urlState.test.ts](../../tests/urlState.test.ts).
-- **En el navegador**, en [e2e-s11.mjs](../../e2e/e2e-s11.mjs) ([S15](S15-pruebas-de-navegador.md)): abrir la vista, que dibuje algo, el indicador, girar con las flechas, el mástil, la reproducción, cerrar con `Esc`, que el instante y el mástil se conserven, y el botón desactivado al norte de 80°S. Sin errores en la consola.
+- **En el navegador**, en [s11-vista-3d.mjs](../../e2e/s11-vista-3d.mjs) ([S15](S15-pruebas-de-navegador.md)): abrir la vista, que dibuje algo, el indicador, girar con las flechas, el mástil, la reproducción, cerrar con `Esc`, que el instante y el mástil se conserven, y el botón desactivado al norte de 80°S. Sin errores en la consola.
 - **A mano**: los criterios 2 a 4 y 9 a 11. No hay pruebas automáticas del dibujo. Los criterios 2 y 3 se midieron con un guion que recorre el parche de 64 km en tres direcciones y lo compara con `computeHorizon`.
 
 ## Fuera de alcance

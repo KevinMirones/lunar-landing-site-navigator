@@ -18,6 +18,8 @@ uniform vec2 uCenter, uHalf;
 uniform float uExtent, uTexel, uDiscR;
 uniform vec3 uDir;
 uniform int uMode;
+uniform int uSteps; // 150, or 90 with longer steps when frames are slow (S14)
+uniform float uGrowth;
 in vec2 vUv; out vec4 o;
 const float R = ${MOON_RADIUS_KM.toFixed(1)};
 float H(vec2 p){ return texture(uH, vec2(p.x/uExtent*0.5+0.5, 0.5-p.y/uExtent*0.5)).r; }
@@ -39,10 +41,11 @@ void main(){
   float h0 = H(p)+0.002;
   float t = 0.4, st = 0.4, m = -1.0;
   for (int i=0;i<150;i++){
+    if (i >= uSteps) break;
     vec2 q = p+dir*t;
     if (max(abs(q.x),abs(q.y)) > uExtent) break;
     m = max(m,(H(q)-h0-t*t/(2.0*R))/t);
-    st *= 1.022; t += st;
+    st *= uGrowth; t += st;
   }
   float hz = atan(m);
   float frac = smoothstep(hz-uDiscR, hz+uDiscR, el);
@@ -155,7 +158,7 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     const u: Record<string, WebGLUniformLocation | null> = {};
-    for (const name of ['uH', 'uCenter', 'uHalf', 'uExtent', 'uTexel', 'uDiscR', 'uDir', 'uMode']) {
+    for (const name of ['uH', 'uCenter', 'uHalf', 'uExtent', 'uTexel', 'uDiscR', 'uDir', 'uMode', 'uSteps', 'uGrowth']) {
       u[name] = gl.getUniformLocation(prog, name);
     }
     gl.uniform1i(u.uH, 0);
@@ -178,13 +181,19 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
   const halfX = (view.half * size.w) / minSide;
   const halfY = (view.half * size.h) / minSide;
 
+  // Adaptive quality (S14). While frames keep coming (playback) and average over
+  // 33 ms, first the canvas resolution drops, then the ray takes 90 longer steps
+  // instead of 150 (same reach, coarser). A pause brings full quality back.
+  const [quality, setQuality] = useState(0);
+  const pace = useRef({ last: 0, sum: 0, n: 0, idle: 0 });
+
   // Draw.
   useEffect(() => {
     const ctx = glRef.current;
     const canvas = canvasRef.current;
     if (!ctx || !canvas || !size.w || !size.h) return;
     const { gl, u } = ctx;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(quality ? 0.75 : 2, window.devicePixelRatio || 1);
     const w = Math.round(size.w * dpr);
     const h = Math.round(size.h * dpr);
     if (canvas.width !== w || canvas.height !== h) {
@@ -198,8 +207,26 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
     gl.uniform3f(u.uDir, d[0], d[1], d[2]);
     gl.uniform1f(u.uDiscR, (mode === 'sun' ? 0.266 : 0.3) * DEG);
     gl.uniform1i(u.uMode, mode === 'sun' ? 0 : 1);
+    gl.uniform1i(u.uSteps, quality > 1 ? 90 : 150);
+    gl.uniform1f(u.uGrowth, quality > 1 ? 1.045 : 1.022);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  }, [hm, view, size, sunDir, earthDir, mode, halfX, halfY]);
+
+    const p = pace.current;
+    const t = performance.now();
+    const dt = t - p.last;
+    p.last = t;
+    // Frames less than a second apart count as playback, however slow they are.
+    if (dt < 1000) {
+      p.sum += dt;
+      if (++p.n >= 8) { // eight frames: an instant on a fast machine, not too long on a slow one
+        if (p.sum / p.n > 33 && quality < 2) setQuality(quality + 1);
+        p.sum = 0;
+        p.n = 0;
+      }
+    }
+    window.clearTimeout(p.idle);
+    if (quality) p.idle = window.setTimeout(() => setQuality(0), 1500); // a pause, not a slow frame
+  }, [hm, view, size, sunDir, earthDir, mode, halfX, halfY, quality]);
 
   // Bring the selected site into view when it changes.
   const selected = sites.find((s) => s.id === selectedId);
@@ -237,6 +264,21 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
       const f = half / v.half;
       return clampView({ half, cx: kx + (v.cx - kx) * f, cy: ky + (v.cy - ky) * f });
     });
+  };
+
+  // Keyboard (S14): arrows move a tenth of the view, + and − zoom, 0 shows the whole pole.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = 0.1;
+    const pan = (dx: number, dy: number) => setView((v) => clampView({ ...v, cx: v.cx + dx * v.half, cy: v.cy + dy * v.half }));
+    if (e.key === 'ArrowLeft') pan(-step, 0);
+    else if (e.key === 'ArrowRight') pan(step, 0);
+    else if (e.key === 'ArrowUp') pan(0, step);
+    else if (e.key === 'ArrowDown') pan(0, -step);
+    else if (e.key === '+' || e.key === '=') zoom(1 / 1.5);
+    else if (e.key === '-' || e.key === '_') zoom(1.5);
+    else if (e.key === '0') setView({ cx: 0, cy: 0, half: 250 });
+    else return;
+    e.preventDefault();
   };
 
   const heightAt = (x: number, y: number): number => {
@@ -309,6 +351,11 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
     <div
       ref={wrapRef}
       className="polar"
+      tabIndex={0}
+      role="application"
+      aria-label={tr('Mapa del polo sur. Flechas para desplazarlo, + y − para acercar o alejar, 0 para verlo entero.', 'South pole map. Arrow keys move it, + and − zoom, 0 shows all of it.')}
+      data-quality={quality}
+      onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

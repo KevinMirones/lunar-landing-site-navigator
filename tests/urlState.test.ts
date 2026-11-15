@@ -1,5 +1,6 @@
 // S02: the whole comparison travels in the address bar.
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_POWER } from '../src/lib/power';
 import { decode, encode, fromShared, toShared, type SharedState } from '../src/lib/urlState';
 import { CATALOG } from '../src/lib/sites';
 
@@ -64,6 +65,56 @@ describe('reading a link', () => {
     const { state, problems } = decode(`${encode(full)}&energia=tracker`, known);
     expect(problems).toEqual([]);
     expect(state).toEqual(full);
+  });
+});
+
+describe('the power configuration in the link (S08)', () => {
+  it('is left out by default, so links written before S08 look the same', () => {
+    expect(encode(full)).not.toContain('p=');
+    expect(decode(encode(full), known).state.power).toBeUndefined();
+  });
+
+  it('travels when it is set', () => {
+    const power = { ...DEFAULT_POWER, panel: 'tilted' as const, tiltDeg: 60, azimuthDeg: 270, batteryWh: 9000 };
+    const link = encode({ ...full, power });
+    expect(link).toContain('&p=tilted:60:270~2~28~200~25~9000');
+    const { state, problems } = decode(link, known);
+    expect(problems).toEqual([]);
+    expect(state.power).toEqual(power);
+  });
+
+  it('reports a configuration it cannot read and keeps the rest', () => {
+    const { state, problems } = decode(encode(full) + '&p=sail~1~2~3', known);
+    expect(state.power).toBeUndefined();
+    expect(state.scenarios).toHaveLength(2);
+    expect(problems).toHaveLength(1);
+  });
+});
+
+describe('the contact settings in the link (S09)', () => {
+  it('are left out by default', () => {
+    expect(encode(full)).not.toContain('c=');
+  });
+  it('travel when they are set, together with the power configuration', () => {
+    const comms = { marginDeg: 5 as const, network: 'single' as const, station: { lat: -35.4, lon: 148.98 } };
+    const link = encode({ ...full, power: { ...DEFAULT_POWER, batteryWh: 9000 }, comms });
+    expect(link).toContain('&c=5~-35.4,148.98');
+    const { state, problems } = decode(link, known);
+    expect(problems).toEqual([]);
+    expect(state.comms).toEqual(comms);
+    expect(state.power?.batteryWh).toBe(9000);
+  });
+});
+
+describe('the simple view in the link (S12)', () => {
+  it('is written only when chosen, and read back', () => {
+    expect(encode(full)).not.toContain('x=');
+    const link = encode({ ...full, simple: true });
+    expect(link).toContain('&x=simple');
+    expect(decode(link, known).state.simple).toBe(true);
+  });
+  it('reports a value it does not know', () => {
+    expect(decode(encode(full) + '&x=kids', known).problems).toHaveLength(1);
   });
 });
 

@@ -4,6 +4,7 @@ import os from 'node:os';
 import { latLonToXY, sharedDem, xyToLatLon } from './dem.js';
 import { COVERAGE_MAX_LAT } from './horizon.js';
 import { createPool } from './pool.js';
+import { nearestPsr } from './psr.js';
 
 export const SEARCH_GRIDS = [11, 21, 41];
 const BATCH = 16; // cells per task: small enough to cancel quickly, large enough to amortise messaging
@@ -55,8 +56,8 @@ let jobs = 0;
  * Runs a search, or returns null when `isCancelled` turns true before it ends.
  * All the work happens in worker threads, so the API keeps answering meanwhile.
  */
-export function runSearch({ lat, lon, radius, mast, t0, days, grid }, isCancelled = () => false) {
-  const key = [lat, lon, radius, mast, t0, days, grid].join('|');
+export function runSearch({ lat, lon, radius, mast, t0, days, grid, margin = 0 }, isCancelled = () => false) {
+  const key = [lat, lon, radius, mast, t0, days, grid, margin].join('|');
   if (cache.has(key)) return Promise.resolve(cache.get(key));
 
   const job = queue.then(async () => {
@@ -73,13 +74,14 @@ export function runSearch({ lat, lon, radius, mast, t0, days, grid }, isCancelle
     const watch = setInterval(() => isCancelled() && workers.cancel(jobId), 100);
     let parts;
     try {
-      parts = await Promise.all(batches.map((b) => workers.run({ cells: b, mast, t0, days }, jobId)));
+      parts = await Promise.all(batches.map((b) => workers.run({ cells: b, mast, t0, days, margin }, jobId)));
     } finally {
       clearInterval(watch);
     }
     if (parts.includes(null)) return null;
 
-    const done = new Map(parts.flat().map((c) => [`${c.i},${c.j}`, c]));
+    // Distance to permanent shadow (S16), capped at 20 km; under 0.1 ms a cell, so on the main thread.
+    const done = new Map(parts.flat().map((c) => [`${c.i},${c.j}`, { ...c, psrKm: nearestPsr(c.lat, c.lon, 20).distanceKm }]));
     const result = {
       center: { lat, lon },
       radiusKm: radius,
@@ -87,7 +89,7 @@ export function runSearch({ lat, lon, radius, mast, t0, days, grid }, isCancelle
       cellKm: (2 * radius) / (grid - 1),
       ms: Math.round(performance.now() - started),
       // Cells north of 80S have no real terrain: they are returned, flagged, with no metrics.
-      cells: cells.map((c) => done.get(`${c.i},${c.j}`) ?? { ...c, covered: false, elevM: 0, slopeDeg: 0, sunShare: 0, earthShare: 0, bothShare: 0, longestDarkH: 0, score: 0 }),
+      cells: cells.map((c) => done.get(`${c.i},${c.j}`) ?? { ...c, covered: false, elevM: 0, slopeDeg: 0, sunShare: 0, earthShare: 0, bothShare: 0, longestDarkH: 0, score: 0, psrKm: null }),
     };
     if (cache.size >= CACHE_SIZE) cache.delete(cache.keys().next().value);
     cache.set(key, result);

@@ -9,3 +9,6 @@ server/data/*.img
 # Published illumination maps used by: npm run validate
 server/data/published/
 *.part
+
+# Screenshots taken by the browser checks (npm run e2e)
+e2e/shots/

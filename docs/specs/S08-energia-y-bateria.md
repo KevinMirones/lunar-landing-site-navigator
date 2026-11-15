@@ -1,7 +1,7 @@
 ---
 id: S08
 titulo: Modelo de energía y batería
-estado: pendiente
+estado: hecha
 dia: 4
 prioridad: imprescindible
 depende: S01
@@ -35,6 +35,26 @@ La herramienta dice qué porcentaje del tiempo hay luz, pero un ingeniero necesi
 - Una fila "Potencia" en la línea de tiempo.
 - Si la Tierra tapa el Sol durante la misión, una marca en la línea de tiempo y un aviso: "El 3 de marzo la Tierra tapa el Sol durante 71 minutos."
 - Los supuestos, junto al resultado: sin polvo, sin degradación, sin efecto de la temperatura, batería cargada al alunizar.
+
+## Resultado
+
+Hecha el 15 de noviembre. Medido con una Luna lisa, sin terreno:
+
+| Criterio | Resultado |
+| --- | --- |
+| 1. Seguidor a pleno Sol | Igual a la fórmula con la distancia corregida, al décimo de vatio. A lo largo de 2027 el máximo queda entre el 95% y el 105% de la cifra sin corregir |
+| 2. Horizontal frente a seguidor en Connecting Ridge | Siempre por debajo del 5%. Con terreno real, en la app: 20 W frente a 780 W |
+| 3. Inclinado con inclinación 0 | Idéntico al horizontal |
+| 4. Batería mínima en Apollo 11 (30 días desde el 14 de noviembre de 2026) | 8 492 Wh, frente a 25 W × 338 h = 8 440 Wh: un 0.6% más, por el consumo de operación al amanecer, con poco Sol todavía |
+| 5. Eclipse del 3 de marzo de 2026 | Máximo 4 minutos antes que el de `SearchLunarEclipse`. Sol tapado por completo 134 min en Apollo 11 y 69 min en Malapert, frente a los 136 y 71 calculados el 14 de noviembre con paso fino |
+| 6 a 8 | Comprobados en el navegador ([s08-energia.mjs](../../e2e/s08-energia.mjs), 15 comprobaciones) y, el 8, también en las pruebas automáticas |
+
+Diferencias con el diseño:
+
+- **Contactos del eclipse.** Se calculan con la separación angular entre los centros, que varía de forma suave. La cobertura salta a 1 y, con muestras cada 30 minutos, recortaba la fase total hasta una muestra por cada extremo: la primera versión daba 91 minutos en Apollo 11 en lugar de 134.
+- **Solo se avisa de los eclipses que importan:** con el Sol sobre el terreno y al menos un 1% de su disco tapado.
+- **Panel inclinado por defecto:** vertical y mirando al norte, porque en el polo el Sol está siempre bajo.
+- **Nombres accesibles de los campos** con la unidad: «Batería (Wh)».
 
 ## Diseño
 

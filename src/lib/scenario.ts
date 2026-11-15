@@ -77,12 +77,15 @@ export interface ScenarioAnalysis {
   metrics: Metrics;
 }
 
-/** `fresh` skips the shared ephemeris cache, to measure a full recomputation. */
-export function analyzeScenario(s: Scenario, site: { lat: number; lon: number }, horizon: Horizon, opts: { fresh?: boolean } = {}): ScenarioAnalysis {
+/**
+ * `fresh` skips the shared ephemeris cache, to measure a full recomputation.
+ * `earthMarginDeg` is the elevation margin the Earth link needs (S09).
+ */
+export function analyzeScenario(s: Scenario, site: { lat: number; lon: number }, horizon: Horizon, opts: { fresh?: boolean; earthMarginDeg?: number } = {}): ScenarioAnalysis {
   const grid = gridFor(s);
-  const series = siteSeries(site.lat, site.lon, horizon, opts.fresh ? computeFrameSeries(grid) : frameSeries(grid));
+  const series = siteSeries(site.lat, site.lon, horizon, opts.fresh ? computeFrameSeries(grid) : frameSeries(grid), opts.earthMarginDeg ?? 0);
   return { series, metrics: metrics(series) };
 }
 
 /** Everything an analysis depends on; equal keys mean the cached result can be reused. */
-export const analysisKey = (s: Scenario, site: { lat: number; lon: number }) => `${site.lat}|${site.lon}|${s.landing}|${s.durationDays}|${s.mast}`;
+export const analysisKey = (s: Scenario, site: { lat: number; lon: number }, earthMarginDeg = 0) => `${site.lat}|${site.lon}|${s.landing}|${s.durationDays}|${s.mast}|${earthMarginDeg}`;

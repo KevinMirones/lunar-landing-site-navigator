@@ -17,6 +17,8 @@ export interface SearchCell {
   bothShare: number;
   longestDarkH: number;
   score: number;
+  /** Distance to permanent shadow (S16), km; null beyond 20 km or without data. */
+  psrKm?: number | null;
 }
 
 export interface SearchResult {
@@ -85,6 +87,8 @@ export interface SearchQuery {
   t0: number;
   days: number;
   grid: number;
+  /** Elevation margin of the Earth link, degrees (S09). */
+  margin: number;
 }
 
 export async function fetchSearch(q: SearchQuery, signal?: AbortSignal): Promise<SearchResult> {

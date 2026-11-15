@@ -1,7 +1,7 @@
 ---
 id: S13
 titulo: Catálogo ampliado y polo norte
-estado: pendiente
+estado: hecha
 dia: 5
 prioridad: recortable
 depende: S07
@@ -13,6 +13,26 @@ resumen: Más sitios históricos y futuros, con buscador, y terreno real tambié
 ## Problema
 
 El catálogo tiene 18 sitios: 12 del polo sur con terreno real y 6 del resto de la Luna. La consigna menciona misiones Apollo, objetivos CLPS, misiones comerciales y programas de otros países; hay huecos evidentes. Además, el terreno real solo cubre el polo sur.
+
+## Resultado
+
+El catálogo y la búsqueda están hechos desde el 15 de noviembre. El polo norte, que la spec marca como opcional, queda sin hacer: el [plan](../PLAN.md#si-vamos-tarde) lo recorta antes que los sitios extra.
+
+| Criterio | Resultado |
+| --- | --- |
+| 1. Al menos 35 sitios con fuente | 37: los 18 de antes y 19 alunizajes históricos (Apollo 12, 14, 15 y 16; Luna 9, 13, 16, 17, 20, 21 y 24; Surveyor 1, 3, 5, 6 y 7; Chang'e 3, 5 y 6) |
+| 2. Buscar "CLPS" o "1972" | Filtra los cuatro sitios CLPS y los tres alunizajes de 1972. Las palabras se combinan e ignoran mayúsculas, acentos y apóstrofos |
+| 3. Enlaces con sitios nuevos | Funcionan, comprobado en otra pestaña |
+| 4. Horizontes precalculados de los sitios polares nuevos | No hay sitios polares nuevos. Una prueba automática exige los tres horizontes a todo sitio al sur de 80°S, para cuando los haya |
+| 5. Polo norte | Sin hacer |
+
+Comprobado con [sites.test.ts](../../tests/sites.test.ts) y en el navegador con [s13-catalogo.mjs](../../e2e/s13-catalogo.mjs) (11 comprobaciones).
+
+**Fuente de los sitios nuevos.** Las coordenadas vienen del artículo «List of artificial objects on the Moon» de Wikipedia, que cita la fuente de cada misión, y así lo dice cada sitio. Es una fuente más débil que las de [S07](S07-validacion-y-coordenadas.md): conviene contrastarlas con las imágenes de LROC antes de citarlas ante el jurado. Ninguna cifra del guion depende de ellas.
+
+**No se añadieron** las regiones de Artemis III que faltan ni misiones CLPS futuras: no se encontró un punto publicado para ellas, y la regla es que un sitio sin fuente no entra.
+
+**Cómo se agrupa.** Se mantienen los grupos por región de la lista (polo sur, otras latitudes y tus puntos). Cada sitio gana `program` y `year`, que alimentan la búsqueda.
 
 ## Qué verá el usuario
 

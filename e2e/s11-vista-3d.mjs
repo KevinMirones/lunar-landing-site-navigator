@@ -1,7 +1,7 @@
-import { open, check, done } from './e2e-lib.mjs';
-const BASE = process.env.E2E_URL || 'http://localhost:5173/';
+// S11: first-person 3D view of the site (by Andrés), on the shared helpers of S15.
+import { check, done, open } from './lib.mjs';
 // Malapert massif, where the Sun and Earth are both up on this date
-const { browser, page, errors } = await open(BASE + '?s=-85.99,0@2026-11-15T00:00~30~2&a=0');
+const { browser, page, errors } = await open('?s=-85.99,0@2026-11-15T00:00~30~2&a=0&l=es');
 const expand = page.getByRole('button', { name: 'Ver en 3D' });
 check('the panorama offers the 3D view inside terrain coverage', await expand.isEnabled());
 await expand.click();

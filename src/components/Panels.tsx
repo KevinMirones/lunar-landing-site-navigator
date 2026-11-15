@@ -2,10 +2,14 @@
 import { memo, useMemo, useState } from 'react';
 import { SUN_RADIUS_KM, moonFixedVectors, siteFrame, topocentric } from '../lib/ephemeris';
 import type { Scenario } from '../lib/scenario';
-import { nextEvent, type Horizon, type Metrics, type Sky, type WindowScores } from '../lib/series';
-import { normLon, type Site } from '../lib/sites';
-import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
+import { discFraction, nextEvent, type Horizon, type Metrics, type Sky, type WindowScores } from '../lib/series';
+import type { CommsResult } from '../lib/comms';
+import type { PowerResult } from '../lib/power';
+import { fmtWattHours } from './Power';
+import { normLon, siteMatches, type Site } from '../lib/sites';
+import { compass, deg, fetchJpl, type Psr, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
 import { Closeup } from './Panorama';
+import { Term } from './Term';
 import { WindowStrip } from './Timeline';
 
 // ---------------------------------------------------------------- Site list
@@ -29,6 +33,8 @@ export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, can
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const shown = sites.filter((s) => siteMatches(s, query, lang));
 
   const groups: Array<{ key: Site['group']; title: string }> = [
     { key: 'south', title: tr('Polo sur', 'South pole') },
@@ -52,8 +58,17 @@ export const SiteList = memo(function SiteList({ sites, activeSiteId, inUse, can
 
   return (
     <nav className="sites" aria-label={tr('Sitios de alunizaje', 'Landing sites')}>
+      <input
+        type="search"
+        className="site-search"
+        value={query}
+        aria-label={tr('Buscar sitios por nombre, programa o año', 'Search sites by name, programme or year')}
+        placeholder={tr('Buscar: nombre, programa o año', 'Search: name, programme or year')}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {shown.length === 0 && <p className="empty">{tr('Ningún sitio coincide con la búsqueda.', 'No site matches the search.')}</p>}
       {groups.map((g) => {
-        const list = sites.filter((s) => s.group === g.key);
+        const list = shown.filter((s) => s.group === g.key);
         if (!list.length) return null;
         return (
           <section key={g.key}>
@@ -122,9 +137,15 @@ interface StatusProps {
   metrics: Metrics;
   now: number;
   windowEnd: number;
+  /** Elevation margin of the Earth link, degrees (S09). */
+  marginDeg?: number;
+  /** Contact with the ground network (S09), or null without one. */
+  contact?: CommsResult | null;
+  /** Nearest permanent shadow (S16); null while loading or without a server. */
+  psr?: Psr | null;
 }
 
-export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusProps) {
+export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg = 0, contact = null, psr = null }: StatusProps) {
   const tr = useTr();
   const lang = useLang();
   const sunEv = nextEvent(metrics.sunIntervals, now, windowEnd);
@@ -146,6 +167,19 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
       ? `${tr('Enlace vuelve en', 'Link returns in')} ${fmtDuration(earthEv.at - now)}`
       : tr('Sin enlace directo en esta misión', 'No direct link during this mission');
 
+  // With a margin (S09) the link needs Earth that many degrees above the terrain.
+  const linked = marginDeg > 0 ? discFraction(horizon, sky.earth.az, sky.earth.el - marginDeg, sky.earth.radius) > 0.5 : sky.earth.frac > 0.5;
+  const above = sky.earth.el - sky.earth.horizon;
+  const earthState = linked ? (
+    <>
+      <Term id="link">{tr('Enlace directo', 'Direct link')}</Term> {tr('disponible', 'available')}
+    </>
+  ) : (
+    sky.earth.frac > 0.5
+      ? tr(`A ${deg(above)} sobre el terreno: con margen de ${marginDeg}° no hay enlace`, `${deg(above)} above the terrain: with a ${marginDeg}° margin there is no link`)
+      : tr('Sin línea de vista', 'No line of sight')
+  );
+
   return (
     <div className="status">
       <header className="status-site">
@@ -156,20 +190,42 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
         </p>
         <p className="status-note">{site.note[lang]}</p>
         {site.precision !== 'custom' && (
-          <p className="status-source">
+          <p className="status-source" data-level="expert">
             <b>{site.precision === 'published' ? tr('Coordenadas publicadas.', 'Published coordinates.') : tr('Punto representativo.', 'Representative point.')}</b> {site.source[lang]}
           </p>
         )}
         <p className={`model ${horizon.model}`}>
-          {horizon.model === 'lola'
-            ? tr(
-                `Horizonte calculado con topografía LOLA de ${horizon.resolutionM ?? 240} m${horizon.precomputed ? ' (precalculado)' : ''}.`,
-                `Horizon computed from ${horizon.resolutionM ?? 240} m LOLA topography${horizon.precomputed ? ' (precomputed)' : ''}.`,
-              )
-            : horizon.offline
+          {horizon.model === 'lola' ? (
+            <>
+              <Term id="horizon">{tr('Horizonte', 'Horizon')}</Term>{' '}
+              {tr(`calculado con topografía LOLA de ${horizon.resolutionM ?? 240} m`, `computed from ${horizon.resolutionM ?? 240} m LOLA topography`)}
+              {horizon.precomputed ? tr(' (precalculado)', ' (precomputed)') : ''} (<Term id="dem" />).
+            </>
+          ) : horizon.offline
               ? tr('Sin conexión con el servidor de terreno: se usa una Luna lisa.', 'Terrain server unreachable: using a smooth Moon.')
               : tr('Fuera de la cobertura de terreno (80°S a 90°S): se usa una Luna lisa.', 'Outside terrain coverage (80°S to 90°S): using a smooth Moon.')}
         </p>
+        {psr && (
+          <p className="status-psr">
+            {!psr.covered ? (
+              <>
+                <Term id="shadow">{tr('Sombra permanente', 'Permanent shadow')}</Term>: {tr('sin dato fuera de 80°S a 90°S.', 'no data outside 80°S to 90°S.')}
+              </>
+            ) : psr.inside ? (
+              <>
+                {tr('Este punto está en', 'This point lies in')} <Term id="shadow" />.
+              </>
+            ) : psr.distanceKm !== null ? (
+              <>
+                <Term id="shadow">{tr('Sombra permanente', 'Permanent shadow')}</Term> {tr('más cercana:', 'nearest:')} {km(psr.distanceKm)} {tr('al', 'to the')} {compass(psr.bearingDeg ?? 0, lang)}.
+              </>
+            ) : (
+              <>
+                {tr('Ninguna zona en', 'No area in')} <Term id="shadow" /> {tr('a menos de 50 km.', 'within 50 km.')}
+              </>
+            )}
+          </p>
+        )}
       </header>
 
       <section className="body-card sun">
@@ -179,12 +235,16 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
           <p className="state">{sky.sun.frac > 0.02 ? `${pct(sky.sun.frac)} ${tr('del disco visible', 'of the disc visible')}` : tr('Oculto', 'Hidden')}</p>
           <p className="countdown">{sunLine}</p>
         </div>
-        <dl>
-          <dt>{tr('Elevación', 'Elevation')}</dt>
+        <dl data-level="expert">
+          <dt>
+            <Term id="elevation">{tr('Elevación', 'Elevation')}</Term>
+          </dt>
           <dd>{deg(sky.sun.el, 2)}</dd>
           <dt>{tr('Sobre el terreno', 'Above terrain')}</dt>
           <dd>{`${sky.sun.el - sky.sun.horizon >= 0 ? '+' : '−'}${deg(Math.abs(sky.sun.el - sky.sun.horizon), 2)}`}</dd>
-          <dt>{tr('Azimut', 'Azimuth')}</dt>
+          <dt>
+            <Term id="azimuth">{tr('Azimut', 'Azimuth')}</Term>
+          </dt>
           <dd>{`${sky.sun.az.toFixed(0)}° ${compass(sky.sun.az, lang)}`}</dd>
           <dt>{tr('Irradiancia', 'Irradiance')}</dt>
           <dd>{Math.round(irradiance)} W/m²</dd>
@@ -195,10 +255,10 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
         <Closeup horizon={horizon} body={sky.earth} kind="earth" />
         <div>
           <h3>{tr('Tierra', 'Earth')}</h3>
-          <p className="state">{sky.earth.frac > 0.5 ? tr('Enlace directo disponible', 'Direct link available') : tr('Sin línea de vista', 'No line of sight')}</p>
+          <p className="state">{earthState}</p>
           <p className="countdown">{earthLine}</p>
         </div>
-        <dl>
+        <dl data-level="expert">
           <dt>{tr('Elevación', 'Elevation')}</dt>
           <dd>{deg(sky.earth.el, 2)}</dd>
           <dt>{tr('Sobre el terreno', 'Above terrain')}</dt>
@@ -214,39 +274,51 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd }: StatusPr
         <h3>{tr('Balance de la misión', 'Mission balance')}</h3>
         <div className="score" title={tr('Índice orientativo: 40% luz solar, 25% noches cortas, 35% enlace con la Tierra.', 'Indicative index: 40% sunlight, 25% short nights, 35% Earth link.')}>
           <strong className="num">{metrics.score}</strong>
-          <span>{tr('índice de viabilidad, de 0 a 100', 'viability index, 0 to 100')}</span>
+          <span>
+            <Term id="index">{tr('índice de viabilidad', 'viability index')}</Term>, {tr('de 0 a 100', '0 to 100')}
+          </span>
         </div>
         <dl>
           <dt>{tr('Con luz solar', 'In sunlight')}</dt>
           <dd>{pct(metrics.sunShare)}</dd>
-          <dt>{tr('Noche más larga', 'Longest night')}</dt>
-          <dd>{metrics.longestDarkMs > 0 ? fmtDuration(metrics.longestDarkMs) : tr('ninguna', 'none')}</dd>
+          <dt data-level="expert">{tr('Noche más larga', 'Longest night')}</dt>
+          <dd data-level="expert">{metrics.longestDarkMs > 0 ? fmtDuration(metrics.longestDarkMs) : tr('ninguna', 'none')}</dd>
           <dt>{tr('Con enlace a la Tierra', 'With Earth link')}</dt>
           <dd>{pct(metrics.earthShare)}</dd>
-          <dt>{tr('Corte de enlace más largo', 'Longest link outage')}</dt>
-          <dd>{metrics.longestNoEarthMs > 0 ? fmtDuration(metrics.longestNoEarthMs) : tr('ninguno', 'none')}</dd>
-          <dt>{tr('Luz y enlace a la vez', 'Sunlight and link together')}</dt>
-          <dd>{pct(metrics.bothShare)}</dd>
+          <dt data-level="expert">{tr('Corte de enlace más largo', 'Longest link outage')}</dt>
+          <dd data-level="expert">{metrics.longestNoEarthMs > 0 ? fmtDuration(metrics.longestNoEarthMs) : tr('ninguno', 'none')}</dd>
+          <dt data-level="expert">{tr('Luz y enlace a la vez', 'Sunlight and link together')}</dt>
+          <dd data-level="expert">{pct(metrics.bothShare)}</dd>
+          {contact && (
+            <>
+              <dt data-level="expert">{tr('Contacto con estaciones, al día', 'Contact with stations, a day')}</dt>
+              <dd data-level="expert">{contact.contactHoursPerDay.toFixed(1)} h</dd>
+              <dt data-level="expert">{tr('Corte de contacto más largo', 'Longest contact gap')}</dt>
+              <dd data-level="expert">{contact.longestGapMs > 0 ? fmtDuration(contact.longestGapMs) : tr('ninguno', 'none')}</dd>
+            </>
+          )}
         </dl>
-        <Insights site={site} horizon={horizon} metrics={metrics} />
-        <JplCheck site={site} now={now} />
+        <Insights site={site} horizon={horizon} metrics={metrics} psr={psr} />
+        <div data-level="expert">
+          <JplCheck site={site} now={now} />
+        </div>
       </section>
     </div>
   );
 }
 
-function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; metrics: Metrics }) {
+function Insights({ site, horizon, metrics, psr }: { site: Site; horizon: Horizon; metrics: Metrics; psr: Psr | null }) {
   const tr = useTr();
   const lang = useLang();
-  const items: string[] = [];
+  const items: React.ReactNode[] = [];
   const polar = Math.abs(site.lat) > 80;
 
   if (metrics.sunShare === 0) {
     items.push(
-      tr(
-        'Ni un minuto de Sol directo en toda la misión. Así son las trampas frías donde se conserva el hielo: valiosas para la ciencia, imposibles para un panel solar.',
-        'Not one minute of direct Sun in the whole mission. This is what cold traps that preserve ice look like: valuable for science, impossible for a solar panel.',
-      ),
+      <>
+        {tr('Ni un minuto de Sol directo en toda la misión. Así son las zonas en', 'Not one minute of direct Sun in the whole mission. This is what areas in')} <Term id="shadow" />
+        {tr(', donde puede conservarse hielo: valiosas para la ciencia, imposibles para un panel solar.', ', where ice may survive, look like: valuable for science, impossible for a solar panel.')}
+      </>,
     );
   } else if (polar) {
     items.push(
@@ -272,10 +344,10 @@ function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; me
     );
   } else if (metrics.earthShare < 0.98) {
     items.push(
-      tr(
-        `La Tierra se asoma y se esconde por la libración (el cabeceo de la Luna): hay enlace directo solo el ${pct(metrics.earthShare)} del tiempo.`,
-        `Earth peeks out and hides because of libration (the Moon's nodding): direct link only ${pct(metrics.earthShare)} of the time.`,
-      ),
+      <>
+        {tr('La Tierra se asoma y se esconde por la', 'Earth peeks out and hides because of')} <Term id="libration" />
+        {tr(` (el cabeceo de la Luna): hay enlace directo solo el ${pct(metrics.earthShare)} del tiempo.`, ` (the Moon's nodding): direct link only ${pct(metrics.earthShare)} of the time.`)}
+      </>,
     );
   } else {
     items.push(tr('La Tierra permanece a la vista toda la misión: enlace directo continuo.', 'Earth stays in view all mission: continuous direct link.'));
@@ -295,6 +367,16 @@ function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; me
             `Ningún relieve supera la horizontal: el horizonte queda por debajo en todas las direcciones (como mucho a ${deg(horizon.elevationDeg[best])}).`,
             `No terrain rises above the horizontal: the horizon lies below it in every direction (${deg(horizon.elevationDeg[best])} at most).`,
           ),
+    );
+  }
+
+  // Science and engineering in one sentence (S16): light for the panels, shadow for the ice.
+  if (psr?.covered && !psr.inside && psr.distanceKm !== null && psr.distanceKm <= 5 && metrics.sunShare >= 0.8) {
+    items.push(
+      tr(
+        `Luz el ${pct(metrics.sunShare)} de la misión y sombra permanente a ${km(psr.distanceKm)}: energía y ciencia al alcance de un rover.`,
+        `Light ${pct(metrics.sunShare)} of the mission and permanent shadow ${km(psr.distanceKm)} away: power and science within a rover's reach.`,
+      ),
     );
   }
 
@@ -348,6 +430,12 @@ export interface ScenarioRow {
   site: Site;
   /** Null while the terrain horizon of the site is still loading. */
   metrics: Metrics | null;
+  /** Energy and battery with the shared lander (S08); null while loading. */
+  power: PowerResult | null;
+  /** Contact with the ground network (S09); null without one. */
+  contact: CommsResult | null;
+  /** Nearest permanent shadow (S16); null while loading. */
+  psr: Psr | null;
 }
 
 interface CompareProps {
@@ -370,10 +458,22 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
     const ms = rows.map((r) => r.metrics).filter((m): m is Metrics => m !== null);
     const max = (f: (m: Metrics) => number) => Math.max(...ms.map(f));
     const min = (f: (m: Metrics) => number) => Math.min(...ms.map(f));
-    return { n: ms.length, sun: max((m) => m.sunShare), dark: min((m) => m.longestDarkMs), earth: max((m) => m.earthShare), both: max((m) => m.bothShare), score: max((m) => m.score) };
+    const ps = rows.map((r) => r.power).filter((p): p is PowerResult => p !== null);
+    return {
+      n: ms.length,
+      sun: max((m) => m.sunShare),
+      dark: min((m) => m.longestDarkMs),
+      earth: max((m) => m.earthShare),
+      both: max((m) => m.bothShare),
+      score: max((m) => m.score),
+      battery: Math.min(...ps.map((p) => p.minBatteryWh)),
+      contact: Math.max(...rows.map((r) => r.contact?.contactHoursPerDay ?? -1)),
+    };
   }, [rows]);
   const mark = (cond: boolean) => (cond && best.n > 1 ? 'is-best' : '');
   const spanDays = Math.round(spanMs / 86400e3);
+  const withContact = rows.some((r) => r.contact);
+  const withPsr = rows.some((r) => r.psr?.covered);
 
   return (
     <div className="compare-scroll">
@@ -393,15 +493,24 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
               </span>
             </th>
             <th>{tr('Luz solar', 'Sunlight')}</th>
-            <th>{tr('Noche más larga', 'Longest night')}</th>
+            <th data-level="expert">{tr('Noche más larga', 'Longest night')}</th>
             <th>{tr('Enlace', 'Link')}</th>
-            <th>{tr('Ambos', 'Both')}</th>
+            <th data-level="expert">{tr('Ambos', 'Both')}</th>
             <th>{tr('Índice', 'Index')}</th>
+            {withPsr && <th title={tr('Distancia a la zona en sombra permanente más cercana, donde puede conservarse hielo.', 'Distance to the nearest permanently shadowed area, where ice may survive.')}>{tr('Sombra permanente', 'Permanent shadow')}</th>}
+            {withContact && (
+              <th data-level="expert" title={tr('Horas al día con enlace y alguna estación viendo la Luna.', 'Hours a day with a link and some station seeing the Moon.')}>
+                {tr('Contacto', 'Contact')}
+              </th>
+            )}
+            <th data-level="expert" title={tr('Batería mínima para sobrevivir la misión, con el módulo del bloque Energía.', 'Smallest battery that survives the mission, with the lander of the Power block.')}>
+              {tr('Batería', 'Battery')}
+            </th>
             <th aria-label={tr('Acciones', 'Actions')} />
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ scenario: sc, site, metrics: m }) => (
+          {rows.map(({ scenario: sc, site, metrics: m, power: p, contact: c, psr: z }) => (
             <tr key={sc.id} className={sc.id === activeId ? 'is-selected' : ''} onClick={() => onActivate(sc.id)}>
               <th scope="row">
                 <button type="button" onClick={() => onActivate(sc.id)} aria-current={sc.id === activeId}>
@@ -423,10 +532,28 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
                 )}
               </td>
               <td className={`num ${m ? mark(m.sunShare === best.sun) : ''}`}>{m ? pct(m.sunShare) : '—'}</td>
-              <td className={`num ${m ? mark(m.longestDarkMs === best.dark) : ''}`}>{m ? (m.longestDarkMs > 0 ? fmtDuration(m.longestDarkMs) : tr('ninguna', 'none')) : '—'}</td>
+              <td data-level="expert" className={`num ${m ? mark(m.longestDarkMs === best.dark) : ''}`}>{m ? (m.longestDarkMs > 0 ? fmtDuration(m.longestDarkMs) : tr('ninguna', 'none')) : '—'}</td>
               <td className={`num ${m ? mark(m.earthShare === best.earth) : ''}`}>{m ? pct(m.earthShare) : '—'}</td>
-              <td className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
+              <td data-level="expert" className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
               <td className={`num score-cell ${m ? mark(m.score === best.score) : ''}`}>{m ? m.score : '—'}</td>
+              {withPsr && <td className="num psr-cell">{!z?.covered ? '—' : z.inside ? tr('dentro', 'inside') : z.distanceKm !== null ? km(z.distanceKm) : '> 50 km'}</td>}
+              {withContact && (
+                <td data-level="expert" className={`num contact-cell ${c ? mark(c.contactHoursPerDay === best.contact) : ''}`}>
+                  {c ? `${c.contactHoursPerDay.toFixed(1)} ${tr('h/día', 'h/day')}` : '—'}
+                </td>
+              )}
+              <td data-level="expert" className={`num battery-cell ${p ? mark(p.minBatteryWh === best.battery) : ''}`}>
+                {p ? (
+                  <>
+                    {fmtWattHours(p.minBatteryWh)}
+                    <span className={`survives ${p.survives ? 'ok' : 'bad'}`} title={p.survives ? tr('La batería del bloque Energía basta', 'The battery of the Power block is enough') : tr('La batería del bloque Energía no basta', 'The battery of the Power block is not enough')}>
+                      {p.survives ? tr('basta', 'enough') : tr('no basta', 'not enough')}
+                    </span>
+                  </>
+                ) : (
+                  '—'
+                )}
+              </td>
               <td className="row-actions" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"

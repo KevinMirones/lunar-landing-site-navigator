@@ -16,7 +16,24 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      # Terrain tests skip themselves when the LOLA grid is not present.
+      # The LOLA grid (29 MB) is cached between runs, so NASA's server, which is
+      # sometimes very slow, is only reached once. If it cannot be fetched, the
+      # terrain tests and the browser checks skip themselves.
+      - uses: actions/cache@v4
+        with:
+          path: server/data/ldem_75s_240m.img
+          key: lola-ldem_75s_240m
+      - run: npm run fetch-data
+        continue-on-error: true
+        timeout-minutes: 15
       - run: npm test
       - run: npm run build
+      # Budget of S14: initial JavaScript under 350 KB compressed.
+      - run: npm run check:bundle
       - run: npm run docs:check
+      # Browser checks against the built app (docs/specs/S15-pruebas-de-navegador.md).
+      # GitHub's Ubuntu machines come with Chrome installed.
+      - run: npm run e2e
+        env:
+          E2E_CHANNEL: chrome
+          E2E_ALLOW_NO_DEM: '1'

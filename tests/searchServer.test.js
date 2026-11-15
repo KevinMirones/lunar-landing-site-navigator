@@ -82,6 +82,24 @@ describe('search API', () => {
       expect(centre.sunShare).toBeCloseTo(direct.sunShare, 1);
     }, 30_000);
 
+    it('applies an elevation margin to the Earth link, and only to it (S09)', async () => {
+      const plain = await (await search({ ...malapertSouthSlope, grid: 11 })).json();
+      const strict = await (await search({ ...malapertSouthSlope, grid: 11, margin: 5 })).json();
+      const byCell = new Map(plain.cells.map((c) => [`${c.i},${c.j}`, c]));
+      let lower = 0;
+      for (const c of strict.cells.filter((c) => c.covered)) {
+        const p = byCell.get(`${c.i},${c.j}`);
+        expect(c.earthShare).toBeLessThanOrEqual(p.earthShare);
+        expect(c.sunShare).toBe(p.sunShare);
+        if (c.earthShare < p.earthShare) lower++;
+      }
+      expect(lower).toBeGreaterThan(0);
+    }, 60_000);
+
+    it('rejects a margin out of range', async () => {
+      expect((await search({ ...malapertSouthSlope, grid: 11, margin: 45 })).status).toBe(400);
+    });
+
     it('reports elevation and slope of each cell, and flags cells without terrain', async () => {
       const body = await (await search({ lat: -80.02, lon: 1.44, radius: 2, mast: 2, t0: T0, days: 14, grid: 11 })).json();
       expect(body.cells.some((c) => !c.covered)).toBe(true); // part of the disc lies north of 80S

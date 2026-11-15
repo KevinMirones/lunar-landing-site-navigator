@@ -3,14 +3,34 @@
 import { useMemo } from 'react';
 import { stripLayout } from '../lib/scenario';
 import { horizonAt, type Horizon, type Interval, type Metrics, type SiteSeries } from '../lib/series';
-import { deg, fmtDate, useLang, useSize, useTr } from '../lib/util';
+import type { CommsResult } from '../lib/comms';
+import type { PowerResult } from '../lib/power';
+import { deg, fmtDate, fmtDuration, useLang, useSize, useTr } from '../lib/util';
 
 interface Props {
   series: SiteSeries;
   horizon: Horizon;
   metrics: Metrics;
+  /** Generation along the mission (S08); adds a third row when present. */
+  power?: PowerResult | null;
+  /** Contact with the ground network (S09); adds a row when present. */
+  contact?: CommsResult | null;
   now: number;
   onScrub: (t: number) => void;
+}
+
+/** Generation shown in four steps of intensity, merged into runs so a month is a handful of rectangles. */
+function powerRuns(p: PowerResult): Array<{ start: number; end: number; level: number }> {
+  const runs: Array<{ start: number; end: number; level: number }> = [];
+  const peak = p.peakW || 1;
+  for (let i = 0; i < p.powerW.length - 1; i++) {
+    const level = p.powerW[i] <= 0 ? 0 : Math.min(4, Math.ceil((4 * p.powerW[i]) / peak));
+    const t = p.t0 + i * p.stepMs;
+    const last = runs[runs.length - 1];
+    if (last && last.level === level && last.end === t) last.end = t + p.stepMs;
+    else runs.push({ start: t, end: t + p.stepMs, level });
+  }
+  return runs.filter((r) => r.level > 0);
 }
 
 const PAD = { l: 64, r: 14, t: 10 };
@@ -19,7 +39,7 @@ const BAND_H = 12;
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 
-export function Timeline({ series, horizon, metrics, now, onScrub }: Props) {
+export function Timeline({ series, horizon, metrics, power, contact, now, onScrub }: Props) {
   const tr = useTr();
   const lang = useLang();
   const [ref, size] = useSize<HTMLDivElement>();
@@ -61,12 +81,18 @@ export function Timeline({ series, horizon, metrics, now, onScrub }: Props) {
   for (let t = firstDay; t <= t1; t += DAY * tickEvery) ticks.push(t);
 
   const bandTop = PAD.t + PLOT_H + 12;
+  // Rows below the plot: sunlight, link, then contact (S09) and power (S08) when present.
+  const contactRow = contact ? 2 : -1;
+  const powerRow = power ? (contact ? 3 : 2) : -1;
+  const bands = 2 + (contact ? 1 : 0) + (power ? 1 : 0);
+  const rowY = (row: number) => bandTop + row * (BAND_H + 6);
+  const runs = useMemo(() => (power ? powerRuns(power) : []), [power]);
   const band = (ivs: Interval[], row: number, cls: string) =>
     ivs.map((iv, i) => (
       <rect key={`${cls}${i}`} className={`band ${cls}`} x={x(iv.start)} width={Math.max(1, x(iv.end) - x(iv.start))} y={bandTop + row * (BAND_H + 6)} height={BAND_H} rx="2" />
     ));
 
-  const height = bandTop + 2 * (BAND_H + 6) + 22;
+  const height = bandTop + bands * (BAND_H + 6) + 22;
   const scrub = (e: React.PointerEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const f = Math.min(1, Math.max(0, (e.clientX - rect.left - PAD.l) / iw));
@@ -108,7 +134,7 @@ export function Timeline({ series, horizon, metrics, now, onScrub }: Props) {
           <rect className="tl-plot" x={PAD.l} y={PAD.t} width={iw} height={PLOT_H} />
           {ticks.map((t) => (
             <g key={t}>
-              <line className="tl-grid" x1={x(t)} x2={x(t)} y1={PAD.t} y2={bandTop + 2 * (BAND_H + 6) - 6} />
+              <line className="tl-grid" x1={x(t)} x2={x(t)} y1={PAD.t} y2={bandTop + bands * (BAND_H + 6) - 6} />
               <text className="tl-tick" x={x(t)} y={height - 6} textAnchor="middle">
                 {new Date(t).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
               </text>
@@ -141,8 +167,49 @@ export function Timeline({ series, horizon, metrics, now, onScrub }: Props) {
           <text className="tl-axis" x={PAD.l - 8} y={bandTop + BAND_H + 16} textAnchor="end">
             {tr('Enlace', 'Link')}
           </text>
+          {contact && (
+            <g className="tl-contact">
+              <rect className="band-track" x={PAD.l} width={iw} y={rowY(contactRow)} height={BAND_H} rx="2" />
+              {contact.byStation.map((st, k) =>
+                st.intervals.map((iv) => {
+                  const w = x(iv.end) - x(iv.start);
+                  return (
+                    <g key={`${st.short}${iv.start}`}>
+                      <rect className={`band contact c${k}`} x={x(iv.start)} width={Math.max(1, w)} y={rowY(contactRow)} height={BAND_H} rx="2">
+                        <title>{st.name === 'own' ? tr('Estación propia', 'Own station') : st.name}</title>
+                      </rect>
+                      {w > 14 && (
+                        <text className="tl-station" x={x(iv.start) + w / 2} y={rowY(contactRow) + 9.5} textAnchor="middle">
+                          {st.short}
+                        </text>
+                      )}
+                    </g>
+                  );
+                }),
+              )}
+              <text className="tl-axis" x={PAD.l - 8} y={rowY(contactRow) + 10} textAnchor="end">
+                {tr('Contacto', 'Contact')}
+              </text>
+            </g>
+          )}
+          {power && (
+            <g className="tl-power">
+              <rect className="band-track" x={PAD.l} width={iw} y={rowY(powerRow)} height={BAND_H} rx="2" />
+              {runs.map((r) => (
+                <rect key={r.start} className={`band power p${r.level}`} x={x(r.start)} width={Math.max(1, x(r.end) - x(r.start))} y={rowY(powerRow)} height={BAND_H} />
+              ))}
+              {power.eclipses.map((e) => (
+                <rect key={e.start} className="band eclipse" x={x(e.start) - 2} width={Math.max(4, x(e.end) - x(e.start) + 4)} y={rowY(powerRow) - 3} height={BAND_H + 6} rx="2">
+                  <title>{tr(`La Tierra tapa el Sol: ${Math.round(e.maxCover * 100)}%, ${fmtDuration(e.end - e.start)}`, `Earth covers the Sun: ${Math.round(e.maxCover * 100)}%, ${fmtDuration(e.end - e.start)}`)}</title>
+                </rect>
+              ))}
+              <text className="tl-axis" x={PAD.l - 8} y={rowY(powerRow) + 10} textAnchor="end">
+                {tr('Potencia', 'Power')}
+              </text>
+            </g>
+          )}
 
-          <line className="tl-cursor" x1={cursorX} x2={cursorX} y1={PAD.t - 4} y2={bandTop + 2 * (BAND_H + 6) - 4} />
+          <line className="tl-cursor" x1={cursorX} x2={cursorX} y1={PAD.t - 4} y2={bandTop + bands * (BAND_H + 6) - 4} />
           <path className="tl-cursor-head" d={`M${cursorX - 5},${PAD.t - 6}h10l-5,7z`} />
         </svg>
       )}

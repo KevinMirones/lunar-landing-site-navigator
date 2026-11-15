@@ -1,7 +1,7 @@
 ---
 id: S10
 titulo: Exportación de ventanas e informe
-estado: pendiente
+estado: en curso
 dia: 4
 prioridad: recortable
 depende: S01, S08, S09
@@ -13,6 +13,25 @@ resumen: Descargar las ventanas en CSV e imprimir un informe de una página con 
 ## Problema
 
 Los resultados solo existen en la pantalla. Un equipo de misión necesita llevárselos a una hoja de cálculo o adjuntarlos a un acta de decisión.
+
+## Estado
+
+Implementada el 15 de noviembre y comprobada con pruebas automáticas ([export.test.ts](../../tests/export.test.ts), 9) y en el navegador ([s10-exportacion.mjs](../../e2e/s10-exportacion.mjs), 13):
+
+- **Criterio 2.** Las horas de `luz_solar` suman la parte de luz de la tabla, en la prueba automática y en la app (720 h y 100% en Connecting Ridge).
+- **Criterio 3.** El CSV de comparación tiene una fila por escenario con las cifras de la tabla. Con cuatro escenarios el informe cabe en una página: la prueba genera el PDF y cuenta sus páginas.
+- **Criterio 4.** El informe lleva la resolución del terreno de cada sitio, los criterios de visibilidad y el enlace para volver a abrir la comparación.
+- **Criterio 6.** Las descargas funcionan con la versión compilada y sus cabeceras de seguridad.
+
+Falta el criterio 1: abrir los dos CSV en Excel y en Google Sheets. El formato está pensado para eso (separador y decimales según el idioma, marca de orden de bytes), pero no se ha probado en esas aplicaciones.
+
+Diferencias con el diseño:
+
+- **A4 apaisado**, porque la tabla tiene diez columnas.
+- **El informe se monta directamente bajo `<body>`** mientras se imprime, para que la hoja de impresión pueda quitar toda la app. Ocultarla con `visibility` dejaba su hueco y el informe ocupaba cinco páginas.
+- **CSV de comparación:** además de las columnas de la tabla, lleva la batería mínima, si basta y el contacto diario. Las celdas que no se calculan quedan vacías.
+- **Los nombres de las columnas, de los eventos y de los archivos** se traducen al inglés con la interfaz en inglés.
+- **Los botones son contenido experto** ([S12](S12-modo-educativo.md)).
 
 ## Qué verá el usuario
 

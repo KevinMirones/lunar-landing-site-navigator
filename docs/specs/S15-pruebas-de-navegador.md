@@ -1,7 +1,7 @@
 ---
 id: S15
 titulo: Pruebas de navegador en el repositorio
-estado: pendiente
+estado: en curso
 dia: 4
 prioridad: imprescindible
 depende: S03
@@ -23,16 +23,27 @@ Nada en la app. El equipo gana:
 
 ## Estado
 
-Los scripts originales se recuperaron del registro de la sesión del 14 de noviembre y están en `e2e/`, con los retoques posteriores ya aplicados: `e2e-lib.mjs` y un flujo por spec (`e2e-s01.mjs`, `e2e-s02.mjs`, `e2e-s04.mjs`, `e2e-s05.mjs`, `e2e-s06.mjs`), con 72 comprobaciones en total.
+Hecho y comprobado en el segundo portátil, el 15 de noviembre:
 
-No se han vuelto a ejecutar. Se escribieron antes de los paneles plegables y de la mezcla con `main`, así que algún selector puede haber cambiado. `playwright-core` todavía no es dependencia del proyecto.
+- `npm run e2e` con su lanzador ([run.mjs](../../e2e/run.mjs)) y las utilidades comunes ([lib.mjs](../../e2e/lib.mjs)).
+- Seis flujos, todos en verde y sin errores en la consola: los cinco recuperados, ya adaptados, y el nuevo de paneles.
+- Con `E2E_HIRES=1` pasan también las comprobaciones con mallas finas, incluida la de que el horizonte precalculado da las mismas cifras que el terreno fino.
+- Romper el botón de duplicar a propósito hace fallar el flujo de S01, que dice en qué paso se quedó (criterio 3).
+- El paso nuevo en [ci.yml](../../.github/workflows/ci.yml), con el DEM en caché.
+
+Falta:
+
+1. **Criterio 1, tiempo total.** En el segundo portátil la batería tarda unos 5 minutos, con WebGL por software. Hay que medirla en el portátil de desarrollo.
+2. **Criterio 5.** Ver el paso nuevo en verde en GitHub. El repositorio es privado y no se pudo comprobar desde fuera.
 
 ## Diseño
 
 **Herramienta:** `playwright-core` como dependencia de desarrollo. Maneja un navegador ya instalado, así que no descarga ninguno.
 
 - El navegador se elige con `E2E_CHANNEL`: por defecto `msedge` en Windows y `chrome` en el resto.
-- Los scripts son módulos sueltos con tres funciones de `e2e-lib.mjs`: `open` (abre la página y recoge los errores de consola), `check` (anota una comprobación) y `done` (resume y fija el código de salida). No hace falta un marco de pruebas.
+- WebGL por software (SwiftShader) por defecto. Forzar la tarjeta gráfica, como hacían los scripts originales, dejaba sin WebGL2 al segundo portátil; sigue disponible con `E2E_GPU=1`.
+- Los scripts son módulos sueltos con las funciones de [lib.mjs](../../e2e/lib.mjs): `open` (abre la página y recoge los errores de consola), `ready` (espera a que no quede nada calculándose), `check` (anota una comprobación) y `done` (resume y fija el código de salida). No hace falta un marco de pruebas.
+- `npm run e2e -- s04 paneles` ejecuta solo los flujos cuyo nombre contiene alguna de esas palabras.
 
 **Lanzador** `e2e/run.mjs`, que es lo que ejecuta `npm run e2e`:
 
@@ -51,19 +62,20 @@ Con `E2E_URL` se salta el paso 2 y prueba una dirección ya en marcha, por ejemp
 - Cualquier error en la consola del navegador cuenta como fallo.
 - Los flujos se renombran a `sNN-nombre.mjs`.
 
-**Flujos que ya existen**, con lo que comprueba cada uno:
+**Flujos**, con lo que comprueba cada uno:
 
 | Flujo | Comprobaciones | Qué recorre |
 | --- | --- | --- |
 | S01 escenarios | 16 | Duplicar con otra fecha, que la barra superior solo edite el activo, eje común de las franjas, eliminar, máximo de seis |
 | S02 enlaces | 14 | La dirección refleja el estado, copiar, abrir en otra pestaña, reproducir sin llenar el historial, enlaces dañados |
-| S04 buscador | 16 | Resultados en la ladera de Malapert, mapa de calor, cambio de criterio, que el escenario creado dé las cifras prometidas, fuera de cobertura |
+| S04 buscador | 14 | Resultados en la ladera de Malapert, mapa de calor, cambio de criterio sin nueva petición, que el escenario creado dé las cifras prometidas, fuera de cobertura. Los dos límites de tiempo solo se comprueban con `LUMINA_PERF=1` |
 | S05 mejores fechas | 12 | Fila de índice, lista ordenada, filtro de Sol, aplicar y añadir fechas |
-| S06 y S07 | 14 | Resolución del terreno y fuente de las coordenadas en pantalla, horizonte precalculado, inglés, 390 px de ancho |
+| S06 y S07 | 11, y 4 más con `E2E_HIRES=1` | Resolución del terreno y fuente de las coordenadas en pantalla, horizonte precalculado, inglés, 390 px de ancho |
+| Paneles | 20 | Lo de la lista siguiente |
 
 El flujo de S06 comparaba dos servidores, uno con mallas finas y otro sin ellas. En `npm run e2e` solo queda la parte sin mallas finas; la otra se ejecuta con `E2E_HIRES=1` en un equipo que las tenga.
 
-**Flujo nuevo: paneles** (lo hecho el 14 de noviembre, sin pruebas todavía):
+**Flujo de paneles** (lo hecho el 14 de noviembre):
 
 - Cada sección se pliega y se despliega con su botón, y el botón cambia su texto accesible.
 - Tras recargar, las secciones plegadas siguen plegadas.
@@ -77,8 +89,8 @@ El flujo de S06 comparaba dos servidores, uno con mallas finas y otro sin ellas.
 **Integración continua.** Un paso más en [ci.yml](../../.github/workflows/ci.yml), después de `npm run build`: `npm run e2e`.
 
 - Los equipos de GitHub traen Chrome instalado: `E2E_CHANNEL=chrome`.
-- No tienen tarjeta gráfica. El navegador se lanza con WebGL por software; si aun así no hay WebGL2, las comprobaciones que miran el dibujo del mapa se anotan como omitidas, no como fallidas.
-- Necesita el DEM. Si no está en el repositorio ([S03](S03-ci-y-despliegue.md)), el paso se salta en la integración continua y las pruebas quedan solo para ejecutarlas en local.
+- No tienen tarjeta gráfica: el WebGL por software de los flujos es justo lo que necesitan.
+- Necesita el DEM. Mientras no esté en el repositorio ([S03](S03-ci-y-despliegue.md)), la integración continua lo descarga una vez y lo guarda en caché. Si la descarga falla, `E2E_ALLOW_NO_DEM=1` hace que el paso se salte con un aviso en lugar de fallar.
 
 ## Criterios de aceptación
 

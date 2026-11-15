@@ -8,7 +8,7 @@
   --line-soft: #2a2b30;
   --dust: #ece7db;
   --dust-2: #aaa69b;
-  --dust-3: #77746d;
+  --dust-3: #908c83; /* 5.1:1 on the chassis, 4.6:1 on raised panels (was #77746d, 3.7:1) */
   --sun: #ffc247;
   --earth: #5db8ff;
   --alert: #ff8a6b;
@@ -1137,8 +1137,27 @@ button.toggle.focus[aria-pressed='true'] {
   .workspace.status-closed {
     --status-col: var(--rail);
   }
+  /* Beside the map, the status column scrolls on its own, like the site list: with the
+     power and communications blocks it is far taller than the screen, and in the flow it
+     stretched the map into a tall strip. The map takes the height of the window instead. */
   .col-status .drawer-body {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
     width: calc(var(--status-open) - 1px);
+    display: flex;
+    flex-direction: column;
+  }
+  .col-status #status-fold {
+    flex: 1;
+    min-height: 0;
+  }
+  .col-status #status-fold > .collapse-inner {
+    overflow-y: auto;
+  }
+  .col-map {
+    min-height: max(560px, calc(100vh - 120px));
   }
   .status-closed .col-status .drawer-body {
     opacity: 0;
@@ -1531,6 +1550,405 @@ button.toggle.focus[aria-pressed='true'] {
   .best-dates {
     margin-left: 0;
   }
+}
+
+/* ---------- power and battery (S08) ---------- */
+.status-extra {
+  padding: 16px 24px 16px 20px;
+  border-top: 1px solid var(--line-soft);
+}
+.status-extra .block-head h3 {
+  font-size: 13px;
+  color: var(--sun);
+}
+.power {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+.power-note,
+.power-assumptions {
+  font-size: 12.5px;
+  color: var(--dust-3);
+  max-width: 52ch;
+}
+.power-inputs {
+  display: grid;
+  gap: 8px;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.field {
+  display: grid;
+  gap: 3px;
+  font-size: 12.5px;
+  color: var(--dust-2);
+}
+.field-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-input input {
+  margin-top: 0;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  background: var(--void);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.field-input input[aria-invalid='true'] {
+  border-color: var(--alert);
+}
+.field-input .unit {
+  min-width: 2.2em;
+  color: var(--dust-3);
+}
+.power-verdict {
+  padding: 8px 10px;
+  border-left: 3px solid var(--sun);
+  background: var(--raised);
+  font-weight: 600;
+  max-width: 52ch;
+}
+.power-verdict.bad {
+  border-left-color: var(--alert);
+}
+.power-eclipses {
+  display: grid;
+  gap: 6px;
+  font-size: 12.5px;
+  max-width: 52ch;
+}
+.power-eclipses li {
+  padding-left: 10px;
+  border-left: 2px solid var(--earth);
+}
+.battery-cell .survives {
+  display: block;
+  font-size: 11.5px;
+}
+.battery-cell .survives.ok {
+  color: var(--dust-3);
+}
+.battery-cell .survives.bad {
+  color: var(--alert);
+}
+/* Generation on the timeline: one gold, four strengths. */
+.band.power {
+  fill: var(--sun);
+}
+.band.power.p1 {
+  opacity: 0.25;
+}
+.band.power.p2 {
+  opacity: 0.5;
+}
+.band.power.p3 {
+  opacity: 0.75;
+}
+.band.eclipse {
+  fill: none;
+  stroke: var(--earth);
+  stroke-width: 1.5;
+}
+
+/* ---------- contact windows (S09) ---------- */
+.status-extra .block-head h3.earth {
+  color: var(--earth);
+}
+.comms {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.comms-row {
+  display: grid;
+  gap: 4px;
+}
+.comms-label {
+  font-size: 12.5px;
+  color: var(--dust-2);
+}
+.comms .segmented {
+  flex-wrap: wrap;
+}
+.comms-note {
+  font-size: 12.5px;
+  color: var(--dust-3);
+  max-width: 52ch;
+}
+.comms-figures .sub {
+  color: var(--dust-3);
+}
+.comms-stations {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.comms-stations b {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--earth);
+}
+/* One blue per station, so hand-overs show on the timeline. */
+.band.contact.c0 {
+  fill: var(--earth);
+}
+.band.contact.c1 {
+  fill: #3d8fd1;
+}
+.band.contact.c2 {
+  fill: #8fd0ff;
+}
+.tl-station {
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--void);
+  pointer-events: none;
+}
+
+/* ---------- educational mode (S12) ---------- */
+/* Simple view: everything marked for experts goes away; nothing is recomputed. */
+.app[data-view='simple'] [data-level='expert'] {
+  display: none !important;
+}
+.tour-start {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--dust);
+  border: 1px solid var(--dust);
+  border-radius: 4px;
+  color: var(--chassis);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tour-start[aria-pressed='true'] {
+  background: var(--raised);
+  border-color: var(--line);
+  color: var(--dust);
+}
+.tour {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  width: min(380px, calc(100vw - 32px));
+  padding: 18px 20px 14px;
+  background: var(--raised);
+  border: 1px solid var(--dust-3);
+  border-left: 3px solid var(--sun);
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+.tour:focus {
+  outline: none;
+}
+.tour:focus-visible {
+  outline: 2px solid var(--dust);
+}
+.tour-count {
+  font-size: 12px;
+  color: var(--dust-3);
+}
+.tour h2 {
+  margin: 4px 0 8px;
+  font-size: 18px;
+}
+.tour p {
+  max-width: 44ch;
+}
+.tour-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tour-actions button {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--chassis);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.tour-actions button.primary {
+  background: var(--dust);
+  border-color: var(--dust);
+  color: var(--chassis);
+  font-weight: 600;
+}
+.tour-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tour-actions .tour-exit {
+  margin-left: auto;
+}
+.tour-keys {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--dust-3);
+}
+/* Glossary terms: an underlined word that opens a short definition. */
+.term-box {
+  position: relative;
+}
+.term {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.term-tip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(320px, 80vw);
+  padding: 10px 12px;
+  background: var(--void);
+  border: 1px solid var(--dust-3);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--dust);
+  text-align: left;
+  white-space: normal;
+}
+@media (max-width: 760px) {
+  .tour {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+}
+
+/* ---------- exports and printed report (S10) ---------- */
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.export-buttons button {
+  height: 30px;
+  padding: 0 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.export-buttons button:hover:not(:disabled) {
+  border-color: var(--dust-3);
+}
+.export-buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.report {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+:root {
+    color-scheme: light;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  /* Only the report is printed: the app is dark and built for a screen. */
+  body > :not(.report) {
+    display: none !important;
+  }
+  .report {
+    display: block;
+    width: 100%;
+    color: #111;
+    font-size: 10.5px;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report h1 {
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+  .report-link {
+    word-break: break-all;
+    color: #333;
+  }
+  .report table {
+    width: 100%;
+    margin: 10px 0;
+    border-collapse: collapse;
+  }
+  .report th,
+  .report td {
+    padding: 5px 6px;
+    border-bottom: 1px solid #bbb;
+    text-align: left;
+    vertical-align: top;
+  }
+  .report thead th {
+    font-size: 9.5px;
+    color: #444;
+    border-bottom: 1.5px solid #333;
+  }
+  .report tbody th span,
+  .report td span {
+    display: block;
+    color: #555;
+    font-weight: 400;
+  }
+  .report-strip {
+    width: 28%;
+  }
+  .report .strip-row {
+    background: #e6e6e6;
+  }
+  .report .strip-row u {
+    background: #cfcfcf;
+  }
+  .report .strip i.sun {
+    background: #d99a00;
+  }
+  .report .strip i.earth {
+    background: #1f78c8;
+  }
+  .report footer p {
+    margin-top: 6px;
+    color: #333;
+  }
+}
+
+/* ---------- extended catalogue (S13) ---------- */
+.site-search {
+  width: calc(100% - 40px);
+  margin: 12px 20px 4px 24px;
+  height: 32px;
+}
+
+/* ---------- permanent shadow (S16) ---------- */
+.status-site .status-psr {
+  margin-top: 8px;
+  color: var(--dust);
+  max-width: 52ch;
 }
 
 /* ---------- 3D view (S11) ---------- */
