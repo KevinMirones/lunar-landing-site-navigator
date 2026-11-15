@@ -140,5 +140,5 @@ describe('analysing scenarios', () => {
     run(); // warm up the JIT
     const best = Math.min(run(), run(), run());
     if (import.meta.env.LUMINA_PERF === '1') expect(best).toBeLessThan(300); // npm run test:perf (S03)
-  });
+  }, 30_000); // four full runs; a slow machine needs more than vitest's default 5 s
 });
