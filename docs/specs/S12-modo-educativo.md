@@ -1,7 +1,7 @@
 ---
 id: S12
 titulo: Modo educativo
-estado: pendiente
+estado: en curso
 dia: 5
 prioridad: imprescindible
 depende: S01
@@ -13,6 +13,24 @@ resumen: Un recorrido guiado de cinco pasos, un glosario y una vista sencilla pa
 ## Problema
 
 La consigna pide servir también a educadores y al público. La app tiene frases explicativas, pero un recién llegado ve una consola llena de cifras y no sabe por dónde empezar.
+
+## Estado
+
+Implementada el 15 de noviembre y comprobada en el navegador con [s12-educativo.mjs](../../e2e/s12-educativo.mjs) (21 comprobaciones):
+
+- Los cinco pasos, con flechas y Escape. Salir en cualquier paso devuelve escenarios, instante, mapa, capa y paneles plegados, y la dirección no cambia durante el recorrido (criterios 2 y 3).
+- Textos en español e inglés, de 30 palabras como máximo. Una prueba automática exige 40 como máximo (criterio 4).
+- En vista sencilla no queda visible ningún elemento marcado como experto, y el enlace con `x=simple` abre en vista sencilla (criterios 5 y 6).
+- Diez términos del glosario, que se abren con un clic o con el teclado y se cierran con Escape.
+
+Falta el criterio 1: que una persona ajena al tema haga el recorrido sin ayuda. Es una prueba con personas y está en el trabajo en paralelo del [plan](../PLAN.md).
+
+Por el camino apareció un fallo de diseño de [S08](S08-energia-y-bateria.md) y [S09](S09-ventanas-de-contacto.md): sus bloques alargaban la columna de estado y estiraban el mapa hasta 1871 px de alto, con la parte visible en negro. En pantallas anchas la columna de estado se desplaza ahora por dentro, como la lista de sitios, y el mapa ocupa el alto de la ventana.
+
+Diferencias con el diseño:
+
+- **Elementos expertos:** las tablas de ángulos del Sol y la Tierra, la fuente de las coordenadas, la comprobación con JPL Horizons, el mástil, el buscador de puntos, los bloques de energía y comunicaciones, y en las tablas la noche más larga, "ambos", la batería y el contacto.
+- **Términos del glosario en pantalla:** los diez. Mástil en la barra superior; horizonte y DEM en la línea del terreno del sitio; elevación y azimut en la tarjeta del Sol; enlace directo en la de la Tierra; índice de viabilidad en el balance; libración y sombra permanente en las frases de veredicto; efemérides en el pie.
 
 ## Qué verá el usuario
 

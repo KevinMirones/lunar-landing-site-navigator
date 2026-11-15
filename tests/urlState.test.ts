@@ -106,6 +106,18 @@ describe('the contact settings in the link (S09)', () => {
   });
 });
 
+describe('the simple view in the link (S12)', () => {
+  it('is written only when chosen, and read back', () => {
+    expect(encode(full)).not.toContain('x=');
+    const link = encode({ ...full, simple: true });
+    expect(link).toContain('&x=simple');
+    expect(decode(link, known).state.simple).toBe(true);
+  });
+  it('reports a value it does not know', () => {
+    expect(decode(encode(full) + '&x=kids', known).problems).toHaveLength(1);
+  });
+});
+
 describe('reading a damaged link', () => {
   it('reports a problem instead of failing on garbage', () => {
     const { state, problems } = decode('?s=xxx', known);

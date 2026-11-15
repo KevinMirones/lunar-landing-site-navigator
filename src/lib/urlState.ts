@@ -9,6 +9,7 @@
 //   l  language    v  map view    m  map layer
 //   p  power configuration (S08), only when it differs from the example values
 //   c  elevation margin and ground network (S09), only when not 0~none
+//   x  simple view (S12): x=simple; without it, the expert view
 //
 // Unknown parameters are ignored, so links written by a newer version still open.
 import { decodeComms, encodeComms, type CommsConfig } from './comms';
@@ -34,6 +35,8 @@ export interface SharedState {
   power?: PowerConfig;
   /** Left out of the link when it is the default. */
   comms?: CommsConfig;
+  /** The simple view for non-specialists (S12); left out for the expert view. */
+  simple?: boolean;
 }
 
 const stamp = (ms: number) => new Date(ms).toISOString().slice(0, 16);
@@ -44,7 +47,7 @@ export function encode(state: SharedState): string {
     .map((sc) => `${typeof sc.site === 'string' ? sc.site : `${coord(sc.site.lat)},${coord(sc.site.lon)}`}@${stamp(sc.landing)}~${sc.durationDays}~${sc.mast}`)
     .join(';');
   // Built by hand: "@ : ; , ~" are legal in a query string and keep the link short and readable.
-  return `s=${scenarios}&a=${state.active}&t=${Math.round(state.hours * 10) / 10}&l=${state.lang}&v=${state.view}&m=${state.mode}${state.power ? `&p=${encodePower(state.power)}` : ''}${state.comms ? `&c=${encodeComms(state.comms)}` : ''}`;
+  return `s=${scenarios}&a=${state.active}&t=${Math.round(state.hours * 10) / 10}&l=${state.lang}&v=${state.view}&m=${state.mode}${state.power ? `&p=${encodePower(state.power)}` : ''}${state.comms ? `&c=${encodeComms(state.comms)}` : ''}${state.simple ? '&x=simple' : ''}`;
 }
 
 function parseScenario(text: string, isKnownSite: (id: string) => boolean): SharedScenario | null {
@@ -124,6 +127,12 @@ export function decode(query: string, isKnownSite: (id: string) => boolean): { s
     const comms = decodeComms(c);
     if (comms) state.comms = comms;
     else problems.push(`comms "${c.slice(0, 60)}"`);
+  }
+
+  const x = params.get('x');
+  if (x !== null) {
+    if (x === 'simple' || x === 'expert') state.simple = x === 'simple';
+    else problems.push(`view level "${x.slice(0, 20)}"`);
   }
 
   return { state, problems };

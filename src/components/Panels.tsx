@@ -9,6 +9,7 @@ import { fmtWattHours } from './Power';
 import { normLon, type Site } from '../lib/sites';
 import { compass, deg, fetchJpl, fmtDate, fmtDuration, fmtLatLon, km, pct, useLang, useSize, useTr } from '../lib/util';
 import { Closeup } from './Panorama';
+import { Term } from './Term';
 import { WindowStrip } from './Timeline';
 
 // ---------------------------------------------------------------- Site list
@@ -156,11 +157,15 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
   // With a margin (S09) the link needs Earth that many degrees above the terrain.
   const linked = marginDeg > 0 ? discFraction(horizon, sky.earth.az, sky.earth.el - marginDeg, sky.earth.radius) > 0.5 : sky.earth.frac > 0.5;
   const above = sky.earth.el - sky.earth.horizon;
-  const earthState = linked
-    ? tr('Enlace directo disponible', 'Direct link available')
-    : sky.earth.frac > 0.5
+  const earthState = linked ? (
+    <>
+      <Term id="link">{tr('Enlace directo', 'Direct link')}</Term> {tr('disponible', 'available')}
+    </>
+  ) : (
+    sky.earth.frac > 0.5
       ? tr(`A ${deg(above)} sobre el terreno: con margen de ${marginDeg}° no hay enlace`, `${deg(above)} above the terrain: with a ${marginDeg}° margin there is no link`)
-      : tr('Sin línea de vista', 'No line of sight');
+      : tr('Sin línea de vista', 'No line of sight')
+  );
 
   return (
     <div className="status">
@@ -172,17 +177,18 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
         </p>
         <p className="status-note">{site.note[lang]}</p>
         {site.precision !== 'custom' && (
-          <p className="status-source">
+          <p className="status-source" data-level="expert">
             <b>{site.precision === 'published' ? tr('Coordenadas publicadas.', 'Published coordinates.') : tr('Punto representativo.', 'Representative point.')}</b> {site.source[lang]}
           </p>
         )}
         <p className={`model ${horizon.model}`}>
-          {horizon.model === 'lola'
-            ? tr(
-                `Horizonte calculado con topografía LOLA de ${horizon.resolutionM ?? 240} m${horizon.precomputed ? ' (precalculado)' : ''}.`,
-                `Horizon computed from ${horizon.resolutionM ?? 240} m LOLA topography${horizon.precomputed ? ' (precomputed)' : ''}.`,
-              )
-            : horizon.offline
+          {horizon.model === 'lola' ? (
+            <>
+              <Term id="horizon">{tr('Horizonte', 'Horizon')}</Term>{' '}
+              {tr(`calculado con topografía LOLA de ${horizon.resolutionM ?? 240} m`, `computed from ${horizon.resolutionM ?? 240} m LOLA topography`)}
+              {horizon.precomputed ? tr(' (precalculado)', ' (precomputed)') : ''} (<Term id="dem" />).
+            </>
+          ) : horizon.offline
               ? tr('Sin conexión con el servidor de terreno: se usa una Luna lisa.', 'Terrain server unreachable: using a smooth Moon.')
               : tr('Fuera de la cobertura de terreno (80°S a 90°S): se usa una Luna lisa.', 'Outside terrain coverage (80°S to 90°S): using a smooth Moon.')}
         </p>
@@ -195,12 +201,16 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
           <p className="state">{sky.sun.frac > 0.02 ? `${pct(sky.sun.frac)} ${tr('del disco visible', 'of the disc visible')}` : tr('Oculto', 'Hidden')}</p>
           <p className="countdown">{sunLine}</p>
         </div>
-        <dl>
-          <dt>{tr('Elevación', 'Elevation')}</dt>
+        <dl data-level="expert">
+          <dt>
+            <Term id="elevation">{tr('Elevación', 'Elevation')}</Term>
+          </dt>
           <dd>{deg(sky.sun.el, 2)}</dd>
           <dt>{tr('Sobre el terreno', 'Above terrain')}</dt>
           <dd>{`${sky.sun.el - sky.sun.horizon >= 0 ? '+' : '−'}${deg(Math.abs(sky.sun.el - sky.sun.horizon), 2)}`}</dd>
-          <dt>{tr('Azimut', 'Azimuth')}</dt>
+          <dt>
+            <Term id="azimuth">{tr('Azimut', 'Azimuth')}</Term>
+          </dt>
           <dd>{`${sky.sun.az.toFixed(0)}° ${compass(sky.sun.az, lang)}`}</dd>
           <dt>{tr('Irradiancia', 'Irradiance')}</dt>
           <dd>{Math.round(irradiance)} W/m²</dd>
@@ -214,7 +224,7 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
           <p className="state">{earthState}</p>
           <p className="countdown">{earthLine}</p>
         </div>
-        <dl>
+        <dl data-level="expert">
           <dt>{tr('Elevación', 'Elevation')}</dt>
           <dd>{deg(sky.earth.el, 2)}</dd>
           <dt>{tr('Sobre el terreno', 'Above terrain')}</dt>
@@ -230,30 +240,34 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
         <h3>{tr('Balance de la misión', 'Mission balance')}</h3>
         <div className="score" title={tr('Índice orientativo: 40% luz solar, 25% noches cortas, 35% enlace con la Tierra.', 'Indicative index: 40% sunlight, 25% short nights, 35% Earth link.')}>
           <strong className="num">{metrics.score}</strong>
-          <span>{tr('índice de viabilidad, de 0 a 100', 'viability index, 0 to 100')}</span>
+          <span>
+            <Term id="index">{tr('índice de viabilidad', 'viability index')}</Term>, {tr('de 0 a 100', '0 to 100')}
+          </span>
         </div>
         <dl>
           <dt>{tr('Con luz solar', 'In sunlight')}</dt>
           <dd>{pct(metrics.sunShare)}</dd>
-          <dt>{tr('Noche más larga', 'Longest night')}</dt>
-          <dd>{metrics.longestDarkMs > 0 ? fmtDuration(metrics.longestDarkMs) : tr('ninguna', 'none')}</dd>
+          <dt data-level="expert">{tr('Noche más larga', 'Longest night')}</dt>
+          <dd data-level="expert">{metrics.longestDarkMs > 0 ? fmtDuration(metrics.longestDarkMs) : tr('ninguna', 'none')}</dd>
           <dt>{tr('Con enlace a la Tierra', 'With Earth link')}</dt>
           <dd>{pct(metrics.earthShare)}</dd>
-          <dt>{tr('Corte de enlace más largo', 'Longest link outage')}</dt>
-          <dd>{metrics.longestNoEarthMs > 0 ? fmtDuration(metrics.longestNoEarthMs) : tr('ninguno', 'none')}</dd>
-          <dt>{tr('Luz y enlace a la vez', 'Sunlight and link together')}</dt>
-          <dd>{pct(metrics.bothShare)}</dd>
+          <dt data-level="expert">{tr('Corte de enlace más largo', 'Longest link outage')}</dt>
+          <dd data-level="expert">{metrics.longestNoEarthMs > 0 ? fmtDuration(metrics.longestNoEarthMs) : tr('ninguno', 'none')}</dd>
+          <dt data-level="expert">{tr('Luz y enlace a la vez', 'Sunlight and link together')}</dt>
+          <dd data-level="expert">{pct(metrics.bothShare)}</dd>
           {contact && (
             <>
-              <dt>{tr('Contacto con estaciones, al día', 'Contact with stations, a day')}</dt>
-              <dd>{contact.contactHoursPerDay.toFixed(1)} h</dd>
-              <dt>{tr('Corte de contacto más largo', 'Longest contact gap')}</dt>
-              <dd>{contact.longestGapMs > 0 ? fmtDuration(contact.longestGapMs) : tr('ninguno', 'none')}</dd>
+              <dt data-level="expert">{tr('Contacto con estaciones, al día', 'Contact with stations, a day')}</dt>
+              <dd data-level="expert">{contact.contactHoursPerDay.toFixed(1)} h</dd>
+              <dt data-level="expert">{tr('Corte de contacto más largo', 'Longest contact gap')}</dt>
+              <dd data-level="expert">{contact.longestGapMs > 0 ? fmtDuration(contact.longestGapMs) : tr('ninguno', 'none')}</dd>
             </>
           )}
         </dl>
         <Insights site={site} horizon={horizon} metrics={metrics} />
-        <JplCheck site={site} now={now} />
+        <div data-level="expert">
+          <JplCheck site={site} now={now} />
+        </div>
       </section>
     </div>
   );
@@ -262,15 +276,15 @@ export function Status({ site, horizon, sky, metrics, now, windowEnd, marginDeg 
 function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; metrics: Metrics }) {
   const tr = useTr();
   const lang = useLang();
-  const items: string[] = [];
+  const items: React.ReactNode[] = [];
   const polar = Math.abs(site.lat) > 80;
 
   if (metrics.sunShare === 0) {
     items.push(
-      tr(
-        'Ni un minuto de Sol directo en toda la misión. Así son las trampas frías donde se conserva el hielo: valiosas para la ciencia, imposibles para un panel solar.',
-        'Not one minute of direct Sun in the whole mission. This is what cold traps that preserve ice look like: valuable for science, impossible for a solar panel.',
-      ),
+      <>
+        {tr('Ni un minuto de Sol directo en toda la misión. Así son las zonas en', 'Not one minute of direct Sun in the whole mission. This is what areas in')} <Term id="shadow" />
+        {tr(', donde puede conservarse hielo: valiosas para la ciencia, imposibles para un panel solar.', ', where ice may survive, look like: valuable for science, impossible for a solar panel.')}
+      </>,
     );
   } else if (polar) {
     items.push(
@@ -296,10 +310,10 @@ function Insights({ site, horizon, metrics }: { site: Site; horizon: Horizon; me
     );
   } else if (metrics.earthShare < 0.98) {
     items.push(
-      tr(
-        `La Tierra se asoma y se esconde por la libración (el cabeceo de la Luna): hay enlace directo solo el ${pct(metrics.earthShare)} del tiempo.`,
-        `Earth peeks out and hides because of libration (the Moon's nodding): direct link only ${pct(metrics.earthShare)} of the time.`,
-      ),
+      <>
+        {tr('La Tierra se asoma y se esconde por la', 'Earth peeks out and hides because of')} <Term id="libration" />
+        {tr(` (el cabeceo de la Luna): hay enlace directo solo el ${pct(metrics.earthShare)} del tiempo.`, ` (the Moon's nodding): direct link only ${pct(metrics.earthShare)} of the time.`)}
+      </>,
     );
   } else {
     items.push(tr('La Tierra permanece a la vista toda la misión: enlace directo continuo.', 'Earth stays in view all mission: continuous direct link.'));
@@ -432,9 +446,9 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
               </span>
             </th>
             <th>{tr('Luz solar', 'Sunlight')}</th>
-            <th>{tr('Noche más larga', 'Longest night')}</th>
+            <th data-level="expert">{tr('Noche más larga', 'Longest night')}</th>
             <th>{tr('Enlace', 'Link')}</th>
-            <th>{tr('Ambos', 'Both')}</th>
+            <th data-level="expert">{tr('Ambos', 'Both')}</th>
             <th>{tr('Índice', 'Index')}</th>
             {withContact && (
               <th data-level="expert" title={tr('Horas al día con enlace y alguna estación viendo la Luna.', 'Hours a day with a link and some station seeing the Moon.')}>
@@ -470,9 +484,9 @@ export function Compare({ rows, activeId, spanMs, elapsed, canAdd, onActivate, o
                 )}
               </td>
               <td className={`num ${m ? mark(m.sunShare === best.sun) : ''}`}>{m ? pct(m.sunShare) : '—'}</td>
-              <td className={`num ${m ? mark(m.longestDarkMs === best.dark) : ''}`}>{m ? (m.longestDarkMs > 0 ? fmtDuration(m.longestDarkMs) : tr('ninguna', 'none')) : '—'}</td>
+              <td data-level="expert" className={`num ${m ? mark(m.longestDarkMs === best.dark) : ''}`}>{m ? (m.longestDarkMs > 0 ? fmtDuration(m.longestDarkMs) : tr('ninguna', 'none')) : '—'}</td>
               <td className={`num ${m ? mark(m.earthShare === best.earth) : ''}`}>{m ? pct(m.earthShare) : '—'}</td>
-              <td className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
+              <td data-level="expert" className={`num ${m ? mark(m.bothShare === best.both) : ''}`}>{m ? pct(m.bothShare) : '—'}</td>
               <td className={`num score-cell ${m ? mark(m.score === best.score) : ''}`}>{m ? m.score : '—'}</td>
               {withContact && (
                 <td data-level="expert" className={`num contact-cell ${c ? mark(c.contactHoursPerDay === best.contact) : ''}`}>

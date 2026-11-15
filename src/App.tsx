@@ -20,7 +20,8 @@ import { DEFAULT_POWER, analyzePower, encodePower, type PowerConfig, type PowerR
 import { fetchSearch, rankCells, type Criterion, type SearchCell, type SearchResult } from './lib/search';
 import { bestDates, dailyShares, frameSeries, siteSeries, skyAt, windowScores, type Horizon, type TimeGrid } from './lib/series';
 import { CATALOG, customSite, type Lang, type Site } from './lib/sites';
-import { decode, encode, fromShared, toShared } from './lib/urlState';
+import { TOUR } from './lib/tour';
+import { decode, encode, fromShared, toShared, type SharedState } from './lib/urlState';
 import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, useMedia, useStoredState, type Heightmap } from './lib/util';
 import { Chevron, Collapse, FocusIcon, SectionToggle } from './components/Collapse';
 import { Comms } from './components/Comms';
@@ -30,7 +31,9 @@ import { Panorama } from './components/Panorama';
 import { PolarMap } from './components/PolarMap';
 import { Power } from './components/Power';
 import { SearchControls, SearchResults, whereFrom, type SearchStatus } from './components/Search';
+import { Term } from './components/Term';
 import { Timeline } from './components/Timeline';
+import { Tour } from './components/Tour';
 import { Wordmark } from './components/Wordmark';
 
 const HOUR = 3600e3;
@@ -71,6 +74,7 @@ function readLink() {
     mode: state.mode ?? ('sun' as const),
     power: state.power ?? DEFAULT_POWER,
     comms: state.comms ?? DEFAULT_COMMS,
+    simple: state.simple ?? false,
     damaged: problems.length > 0,
   };
 }
@@ -119,7 +123,18 @@ export default function App() {
   const margin = comms.marginDeg;
   const [linkDamaged, setLinkDamaged] = useState(boot.damaged);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
-  const [panels, setPanels] = useStoredState('lumina.panels', PANELS);
+  const [storedPanels, setStoredPanels] = useStoredState('lumina.panels', PANELS);
+  /** Simple view for non-specialists (S12): hides everything marked data-level="expert". */
+  const [simple, setSimple] = useState(boot.simple);
+  // Guided tour (S12). While it runs it has its own panels, so nothing it opens is
+  // remembered, and it keeps what was on screen to put it back on exit.
+  const [tour, setTour] = useState<{
+    step: number;
+    panels: typeof PANELS;
+    saved: { scenarios: Scenario[]; custom: Site[]; activeId: string; elapsed: number; view: 'polar' | 'globe'; mode: 'sun' | 'earth'; playing: boolean };
+  } | null>(null);
+  const panels = tour ? tour.panels : storedPanels;
+  const setPanels = (update: (p: typeof PANELS) => typeof PANELS) => (tour ? setTour((t) => t && { ...t, panels: update(t.panels) }) : setStoredPanels(update));
   const togglePanel = (p: Panel) => setPanels((s) => ({ ...s, [p]: !s[p] }));
   const sidesOpen = panels.sites || panels.status;
   // Where a side panel stacks above or below the map, it folds up instead of sideways.
@@ -356,14 +371,15 @@ export default function App() {
         mode: mapMode,
         power: encodePower(power) === encodePower(DEFAULT_POWER) ? undefined : power,
         comms: encodeComms(comms) === encodeComms(DEFAULT_COMMS) ? undefined : comms,
+        simple: simple || undefined,
       })}`,
-    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode, power, comms],
+    [scenarios, siteOf, active.id, elapsed, durationMs, lang, mapView, mapMode, power, comms, simple],
   );
   useEffect(() => {
-    if (playing) return; // the address waits until playback stops
+    if (playing || tour) return; // the address waits until playback stops, and ignores the tour
     const id = window.setTimeout(() => window.history.replaceState(null, '', link()), 300);
     return () => window.clearTimeout(id);
-  }, [link, playing]);
+  }, [link, playing, tour]);
   const copyLink = async () => {
     const url = link();
     window.history.replaceState(null, '', url);
@@ -427,6 +443,44 @@ export default function App() {
     [scenarios, siteAtCell, landing, durationDays, mast],
   );
 
+  // ---- guided tour (S12): a step is a shareable state, applied like an opened link
+  const applyShared = useCallback((st: Omit<SharedState, 'lang'>) => {
+    const restored = fromShared(st.scenarios);
+    setCustom(restored.custom);
+    setScenarios(restored.scenarios);
+    setActiveId(restored.scenarios[st.active]?.id ?? restored.scenarios[0].id);
+    setElapsed(st.hours * HOUR);
+    setMapView(st.view);
+    setMapMode(st.mode);
+  }, []);
+  const openFor = (step: number) => Object.fromEntries(TOUR[step].open.map((p) => [p, true]));
+  const goTour = useCallback(
+    (step: number) => {
+      if (step < 0 || step >= TOUR.length) return;
+      applyShared(TOUR[step].state);
+      setPlaying(!!TOUR[step].play);
+      setTour((t) => t && { ...t, step, panels: { ...t.panels, ...openFor(step) } });
+    },
+    [applyShared],
+  );
+  const startTour = () => {
+    setTour({ step: 0, panels: { ...storedPanels, ...openFor(0) }, saved: { scenarios, custom, activeId: active.id, elapsed, view: mapView, mode: mapMode, playing } });
+    applyShared(TOUR[0].state);
+    setPlaying(!!TOUR[0].play);
+  };
+  const exitTour = useCallback(() => {
+    if (!tour) return;
+    const s = tour.saved;
+    setCustom(s.custom);
+    setScenarios(s.scenarios);
+    setActiveId(s.activeId);
+    setElapsed(s.elapsed);
+    setMapView(s.view);
+    setMapMode(s.mode);
+    setPlaying(s.playing);
+    setTour(null);
+  }, [tour]);
+
   const rows: ScenarioRow[] = useMemo(
     () => scenarios.map((sc) => ({ scenario: sc, site: siteOf(sc.siteId), metrics: analyses.get(sc.id)?.metrics ?? null, power: powers.get(sc.id) ?? null, contact: contacts.get(sc.id) ?? null })),
     [scenarios, siteOf, analyses, powers, contacts],
@@ -437,7 +491,7 @@ export default function App() {
 
   return (
     <LangContext.Provider value={lang}>
-      <div className="app">
+      <div className="app" data-view={simple ? 'simple' : 'expert'}>
         <header className="topbar">
           <div className="brand">
             <Wordmark />
@@ -458,8 +512,10 @@ export default function App() {
                 ))}
               </div>
             </fieldset>
-            <fieldset title={tr('Altura de paneles y antena sobre el suelo: unos metros cambian el horizonte en el polo.', 'Height of panels and antenna above ground: a few metres change the horizon at the pole.')}>
-              <legend>{tr('Altura del mástil', 'Mast height')}</legend>
+            <fieldset data-level="expert" title={tr('Altura de paneles y antena sobre el suelo: unos metros cambian el horizonte en el polo.', 'Height of panels and antenna above ground: a few metres change the horizon at the pole.')}>
+              <legend>
+                {tr('Altura del', 'Height of the')} <Term id="mast" />
+              </legend>
               <div className="segmented">
                 {MASTS.map((m) => (
                   <button key={m} type="button" aria-pressed={m === mast} onClick={() => editActive({ mast: m })}>
@@ -471,6 +527,17 @@ export default function App() {
             <button type="button" className="copy-link" onClick={copyLink}>
               <span aria-live="polite">{copyState === 'copied' ? tr('Enlace copiado', 'Link copied') : tr('Copiar enlace', 'Copy link')}</span>
             </button>
+            <button type="button" className="tour-start" onClick={tour ? exitTour : startTour} aria-pressed={!!tour}>
+              {tour ? tr('Salir del recorrido', 'Leave the tour') : tr('Recorrido', 'Tour')}
+            </button>
+            <div className="segmented" role="group" aria-label={tr('Vista', 'View')}>
+              <button type="button" aria-pressed={simple} onClick={() => setSimple(true)}>
+                {tr('Sencilla', 'Simple')}
+              </button>
+              <button type="button" aria-pressed={!simple} onClick={() => setSimple(false)}>
+                {tr('Experta', 'Expert')}
+              </button>
+            </div>
             <div className="segmented lang" role="group" aria-label={tr('Idioma', 'Language')}>
               <button type="button" aria-pressed={lang === 'es'} onClick={() => setLang('es')}>
                 ES
@@ -556,6 +623,7 @@ export default function App() {
                   <button
                     type="button"
                     className="search-toggle"
+                    data-level="expert"
                     aria-pressed={search.open}
                     disabled={!searchable}
                     title={searchable ? undefined : tr('El buscador necesita terreno real: solo funciona entre 80°S y 90°S.', 'The search needs real terrain: it only works between 80°S and 90°S.')}
@@ -725,12 +793,14 @@ export default function App() {
 
         <footer className="foot">
           <p>
+            {tr('Datos: topografía LOLA de Lunar Reconnaissance Orbiter (NASA GSFC, PDS), mosaico LROC (NASA SVS),', 'Data: LOLA topography from Lunar Reconnaissance Orbiter (NASA GSFC, PDS), LROC mosaic (NASA SVS),')} <Term id="ephemeris" />{' '}
             {tr(
-              'Datos: topografía LOLA de Lunar Reconnaissance Orbiter (NASA GSFC, PDS), mosaico LROC (NASA SVS), efemérides validadas contra NASA/JPL Horizons. Herramienta de apoyo a la planificación; no sustituye un análisis de misión.',
-              'Data: LOLA topography from Lunar Reconnaissance Orbiter (NASA GSFC, PDS), LROC mosaic (NASA SVS), ephemeris validated against NASA/JPL Horizons. A planning aid; it does not replace a mission analysis.',
+              'validadas contra NASA/JPL Horizons. Herramienta de apoyo a la planificación; no sustituye un análisis de misión.',
+              'validated against NASA/JPL Horizons. A planning aid; it does not replace a mission analysis.',
             )}
           </p>
         </footer>
+        {tour && <Tour step={tour.step} onGo={goTour} onExit={exitTour} />}
       </div>
     </LangContext.Provider>
   );

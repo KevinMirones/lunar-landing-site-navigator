@@ -10,7 +10,9 @@ await page.locator('input[type=datetime-local]').fill('2027-02-03T06:30');
 await page.getByRole('button', { name: '60 d' }).click();
 await page.getByRole('button', { name: '10 m', exact: true }).click();
 await page.getByRole('button', { name: 'Dónde se ve la Tierra' }).click();
-await page.locator('.polar').click({ position: { x: 200, y: 420 } }); // custom point on the active scenario
+// custom point on the active scenario: a click well away from the site markers, which cluster at the pole
+const map = await page.locator('.polar').boundingBox();
+await page.locator('.polar').click({ position: { x: Math.round(map.width * 0.18), y: Math.round(map.height * 0.22) } });
 await ready(page);
 await page.locator('.timeline').focus();
 for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');

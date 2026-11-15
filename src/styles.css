@@ -1137,8 +1137,27 @@ button.toggle.focus[aria-pressed='true'] {
   .workspace.status-closed {
     --status-col: var(--rail);
   }
+  /* Beside the map, the status column scrolls on its own, like the site list: with the
+     power and communications blocks it is far taller than the screen, and in the flow it
+     stretched the map into a tall strip. The map takes the height of the window instead. */
   .col-status .drawer-body {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
     width: calc(var(--status-open) - 1px);
+    display: flex;
+    flex-direction: column;
+  }
+  .col-status #status-fold {
+    flex: 1;
+    min-height: 0;
+  }
+  .col-status #status-fold > .collapse-inner {
+    overflow-y: auto;
+  }
+  .col-map {
+    min-height: max(560px, calc(100vh - 120px));
   }
   .status-closed .col-status .drawer-body {
     opacity: 0;
@@ -1692,4 +1711,125 @@ button.toggle.focus[aria-pressed='true'] {
   font-weight: 700;
   fill: var(--void);
   pointer-events: none;
+}
+
+/* ---------- educational mode (S12) ---------- */
+/* Simple view: everything marked for experts goes away; nothing is recomputed. */
+.app[data-view='simple'] [data-level='expert'] {
+  display: none !important;
+}
+.tour-start {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--dust);
+  border: 1px solid var(--dust);
+  border-radius: 4px;
+  color: var(--chassis);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tour-start[aria-pressed='true'] {
+  background: var(--raised);
+  border-color: var(--line);
+  color: var(--dust);
+}
+.tour {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  width: min(380px, calc(100vw - 32px));
+  padding: 18px 20px 14px;
+  background: var(--raised);
+  border: 1px solid var(--dust-3);
+  border-left: 3px solid var(--sun);
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+.tour:focus {
+  outline: none;
+}
+.tour:focus-visible {
+  outline: 2px solid var(--dust);
+}
+.tour-count {
+  font-size: 12px;
+  color: var(--dust-3);
+}
+.tour h2 {
+  margin: 4px 0 8px;
+  font-size: 18px;
+}
+.tour p {
+  max-width: 44ch;
+}
+.tour-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tour-actions button {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--chassis);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.tour-actions button.primary {
+  background: var(--dust);
+  border-color: var(--dust);
+  color: var(--chassis);
+  font-weight: 600;
+}
+.tour-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tour-actions .tour-exit {
+  margin-left: auto;
+}
+.tour-keys {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--dust-3);
+}
+/* Glossary terms: an underlined word that opens a short definition. */
+.term-box {
+  position: relative;
+}
+.term {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.term-tip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(320px, 80vw);
+  padding: 10px 12px;
+  background: var(--void);
+  border: 1px solid var(--dust-3);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--dust);
+  text-align: left;
+  white-space: normal;
+}
+@media (max-width: 760px) {
+  .tour {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    width: auto;
+  }
 }
