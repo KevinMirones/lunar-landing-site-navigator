@@ -34,7 +34,7 @@ Hecho y probado:
 Cerrada el 15 de noviembre, al terminar el proyecto (`v1.0.0`):
 
 - **Alojamiento: Hostinger**, en lugar de Render. El equipo ya tenía allí un plan con aplicaciones Node.js, y una aplicación conectada a GitHub que se redespliega en cada push a `main`. Los pasos y los ajustes están en el [README](../../README.md#en-hostinger-aplicación-nodejs-de-hpanel).
-- **Datos:** se despliegan todos los que hay, incluida la malla global de [S17](S17-relieve-global.md) (531 MB). Hostinger limita la compilación a 15 minutos, así que `npm run build:deploy` descarga en paralelo y se detiene a los 11 minutos. Lo bajado se conserva para el siguiente despliegue. La malla de 240 m baja en unos 20 segundos.
+- **Datos:** se despliegan todos los que hay, incluida la malla global de [S17](S17-relieve-global.md) (531 MB). El preajuste Express de Hostinger no tiene paso de compilación, así que la descarga y la compilación van en la instalación: [postinstall.mjs](../../scripts/postinstall.mjs) las ejecuta solo con `LUMINA_DEPLOY=1`. La instalación tiene un límite de 15 minutos, así que la malla global se detiene a los 9 y el siguiente despliegue continúa. La malla de 240 m baja en unos 20 segundos. En alojamientos con paso de compilación vale `npm run build:deploy`.
 - **El DEM no entra en el repositorio:** con la descarga en paralelo ya no hace falta, y la decisión era irreversible.
 
 Sin hacer:

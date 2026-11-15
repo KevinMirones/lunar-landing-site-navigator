@@ -108,16 +108,19 @@ Sirve con los planes que admiten aplicaciones Node.js (Business y Cloud).
 
    | Campo | Valor |
    | --- | --- |
-   | Tipo de aplicación | Express u "Other". No Vite: Vite lo trataría como una web estática |
-   | Node.js version | 24 |
-   | Root directory | la raíz del repositorio |
-   | Package manager | npm |
-   | Build script | `build:deploy` |
-   | Entry file | `server/index.js` |
-   | Output directory | vacío. Si es obligatorio, `dist` |
+   | Preajuste del framework | Express. No Vite: Vite lo trataría como una web estática |
+   | Rama | `main` |
+   | Versión del nodo | 24.x |
+   | Directorio raíz | `./` |
+   | Gestor de paquetes | npm |
+   | Archivo de entrada | `server/index.js` |
 
-3. Variables de entorno: `TRUST_PROXY=1`, `SEARCH_WORKERS=1` y `SEARCH_MAX_GRID=21`. `PORT` no se define: la pone Hostinger.
-4. Despliega. La primera compilación tarda unos 13 minutos, casi todo en la descarga.
+3. Variables de entorno: `LUMINA_DEPLOY=1`, `TRUST_PROXY=1`, `SEARCH_WORKERS=1` y `SEARCH_MAX_GRID=21`. `PORT` no se define: la pone Hostinger.
+
+   El preajuste Express instala las dependencias y arranca el servidor, pero no tiene un paso de compilación. Con `LUMINA_DEPLOY=1`, la instalación ejecuta [postinstall.mjs](scripts/postinstall.mjs): descarga los datos y compila la web. Como la instalación también tiene un límite de 15 minutos, la malla global se detiene a los 9. Sin esa variable, `npm install` no hace nada más, ni en Hostinger ni en un equipo de desarrollo.
+
+   Si el preajuste elegido sí tiene un campo de script de compilación, se puede usar `build:deploy` en lugar de la variable.
+4. Despliega. La primera instalación tarda unos 12 minutos, casi todo en la descarga.
 5. Abre `https://<tu dominio>/api/health`:
    - `"dem": true` y `"precomputed": 111`: todo en marcha.
    - `"globalDem": false`: la malla global no terminó en el plazo. Vuelve a desplegar desde **Deployments** para que continúe.
