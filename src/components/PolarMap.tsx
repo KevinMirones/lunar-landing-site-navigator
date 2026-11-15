@@ -1,10 +1,11 @@
 // Live shadow map of the lunar south pole. A WebGL2 fragment shader ray-marches
 // the LOLA heightmap toward the Sun (or Earth) from every pixel, including the
 // curvature of the Moon, so the map shows which ground can see the body right now.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEG, MOON_RADIUS_KM, type Vec3 } from '../lib/ephemeris';
+import { MAX_LANDING_SLOPE_DEG, heatRange, valueOf, type Criterion, type SearchCell, type SearchResult } from '../lib/search';
 import type { Site } from '../lib/sites';
-import { fmtLatLon, useSize, useTr, type Heightmap } from '../lib/util';
+import { fmtLatLon, pct, useSize, useTr, type Heightmap } from '../lib/util';
 
 const VERT = `#version 300 es
 in vec2 aPos; out vec2 vUv;
@@ -75,7 +76,17 @@ interface Props {
   pinned: string[];
   onSelect: (id: string) => void;
   onPick: (lat: number, lon: number) => void;
+  /** Result of a search around the active point, drawn as a heat map. */
+  heat?: Heat | null;
 }
+
+export interface Heat {
+  result: SearchResult;
+  criterion: Criterion;
+  picks: SearchCell[];
+}
+
+const HEAT_RGB: Record<Criterion, string> = { sun: '255,194,71', earth: '93,184,255', score: '236,231,219' };
 
 interface View {
   cx: number;
@@ -96,7 +107,7 @@ const unit = (v: Vec3): Vec3 => {
   return [v[0] / r, v[1] / r, v[2] / r];
 };
 
-export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned, onSelect, onPick }: Props) {
+export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned, onSelect, onPick, heat }: Props) {
   const tr = useTr();
   const [wrapRef, size] = useSize<HTMLDivElement>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -198,6 +209,15 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
     setView((v) => (Math.abs(x - v.cx) < v.half * 0.85 && Math.abs(y - v.cy) < v.half * 0.85 ? v : { ...v, cx: x, cy: y }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
+
+  // Zoom to the searched area when a search starts or its radius changes.
+  const heatArea = heat ? `${heat.result.center.lat}|${heat.result.center.lon}|${heat.result.radiusKm}` : '';
+  useEffect(() => {
+    if (!heat) return;
+    const [x, y] = toXY(heat.result.center.lat, heat.result.center.lon);
+    setView({ cx: x, cy: y, half: Math.max(8, heat.result.radiusKm * 1.9) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heatArea]);
 
   const sx = useCallback((x: number) => ((x - view.cx) / halfX) * (size.w / 2) + size.w / 2, [view.cx, halfX, size.w]);
   const sy = useCallback((y: number) => size.h / 2 - ((y - view.cy) / halfY) * (size.h / 2), [view.cy, halfY, size.h]);
@@ -322,6 +342,7 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
             );
           })}
         </g>
+        {heat && <HeatLayer heat={heat} cx={view.cx} cy={view.cy} halfX={halfX} halfY={halfY} w={size.w} h={size.h} />}
         {visibleSites.map((s) => {
           const [x, y] = toXY(s.lat, s.lon);
           const isSel = s.id === selectedId;
@@ -365,6 +386,8 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
         </span>
       </div>
 
+      {heat && <HeatLegend heat={heat} />}
+
       <div className="polar-zoom">
         <button type="button" onClick={() => zoom(1 / 1.5)} aria-label={tr('Acercar', 'Zoom in')}>
           +
@@ -387,6 +410,76 @@ export function PolarMap({ hm, sunDir, earthDir, mode, sites, selectedId, pinned
             : tr('Haz clic en el mapa para evaluar ese punto', 'Click the map to evaluate that point')}
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Search cells as coloured squares. Memoised: it does not redraw while time plays. */
+const HeatLayer = memo(function HeatLayer({ heat, cx, cy, halfX, halfY, w, h }: { heat: Heat; cx: number; cy: number; halfX: number; halfY: number; w: number; h: number }) {
+  const { result, criterion, picks } = heat;
+  // Map position of every cell: depends on the result only, not on pan or zoom.
+  const placed = useMemo(() => result.cells.filter((c) => c.covered).map((c) => ({ c, xy: toXY(c.lat, c.lon) })), [result]);
+  const { min, max } = useMemo(() => heatRange(result.cells, criterion), [result, criterion]);
+  const px = (x: number) => ((x - cx) / halfX) * (w / 2) + w / 2;
+  const py = (y: number) => h / 2 - ((y - cy) / halfY) * (h / 2);
+  const side = (result.cellKm / (2 * halfX)) * w;
+  const span = max - min || 1;
+  const [ox, oy] = toXY(result.center.lat, result.center.lon);
+  const steep = placed
+    .filter(({ c }) => c.slopeDeg > MAX_LANDING_SLOPE_DEG)
+    .map(({ xy }) => `M${(px(xy[0]) - side / 2).toFixed(1)},${(py(xy[1]) - side / 2).toFixed(1)}h${side.toFixed(1)}v${side.toFixed(1)}h${(-side).toFixed(1)}z`)
+    .join('');
+  return (
+    <g className="heat">
+      <defs>
+        <pattern id="heat-steep" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="5" stroke="#040508" strokeWidth="2.2" strokeOpacity="0.55" />
+        </pattern>
+      </defs>
+      {placed.map(({ c, xy }) => (
+        <rect
+          key={`${c.i},${c.j}`}
+          x={px(xy[0]) - side / 2}
+          y={py(xy[1]) - side / 2}
+          width={side + 0.6}
+          height={side + 0.6}
+          fill={`rgb(${HEAT_RGB[criterion]})`}
+          fillOpacity={0.08 + 0.74 * ((valueOf(c, criterion) - min) / span)}
+        />
+      ))}
+      <path d={steep} fill="url(#heat-steep)" />
+      <circle className="heat-area" cx={px(ox)} cy={py(oy)} r={(result.radiusKm / (2 * halfX)) * w + side / 2} />
+      {picks.map((c, k) => {
+        const [x, y] = toXY(c.lat, c.lon);
+        return (
+          <g key={`${c.i},${c.j}`} className="heat-pick" transform={`translate(${px(x)},${py(y)})`}>
+            <circle r="9" />
+            <text y="4" textAnchor="middle">
+              {k + 1}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+});
+
+function HeatLegend({ heat }: { heat: Heat }) {
+  const tr = useTr();
+  const { min, max } = heatRange(heat.result.cells, heat.criterion);
+  const label = { sun: tr('Luz solar en la misión', 'Sunlight over the mission'), earth: tr('Enlace con la Tierra', 'Earth link'), score: tr('Índice de viabilidad', 'Viability index') }[heat.criterion];
+  const show = (v: number) => (heat.criterion === 'score' ? String(Math.round(v * 100)) : pct(v));
+  return (
+    <div className="heat-legend num" aria-hidden="true">
+      <span>{label}</span>
+      <span className="heat-scale">
+        {show(min)}
+        <i style={{ background: `linear-gradient(to right, rgba(${HEAT_RGB[heat.criterion]},0.08), rgba(${HEAT_RGB[heat.criterion]},0.82))` }} />
+        {show(max)}
+      </span>
+      <span className="heat-steep-key">
+        <i /> {tr(`pendiente mayor de ${MAX_LANDING_SLOPE_DEG}°`, `slope above ${MAX_LANDING_SLOPE_DEG}°`)}
+      </span>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import {
   siteFrame,
   topocentric,
   type Vec3,
-} from './ephemeris';
+} from './ephemeris.ts';
 
 export interface TimeGrid {
   t0: number;
@@ -23,7 +23,11 @@ export interface FrameSeries extends TimeGrid {
 }
 
 export interface Horizon {
-  model: 'lola-240m' | 'sphere';
+  model: 'lola' | 'sphere';
+  /** Cell size in metres of the terrain under the site (real terrain only). */
+  resolutionM?: number;
+  /** True when the server answered with a horizon computed beforehand on finer terrain than it holds. */
+  precomputed?: boolean;
   siteElevationM: number;
   mastM: number;
   nAz: number;
@@ -46,12 +50,12 @@ export interface SiteSeries extends TimeGrid {
 export const SUN_THRESHOLD = 0.02;
 export const EARTH_THRESHOLD = 0.5;
 
+// Room for six scenarios, the year calendar and a few recent edits.
+const FRAME_CACHE_SIZE = 32;
 const frameCache = new Map<string, FrameSeries>();
 
-export function frameSeries(grid: TimeGrid): FrameSeries {
-  const key = `${grid.t0}|${grid.stepMs}|${grid.n}`;
-  const hit = frameCache.get(key);
-  if (hit) return hit;
+/** Sun and Earth vectors for every instant of a grid. Costs about 14 microseconds per instant. */
+export function computeFrameSeries(grid: TimeGrid): FrameSeries {
   const sun = new Float64Array(grid.n * 3);
   const earth = new Float64Array(grid.n * 3);
   for (let i = 0; i < grid.n; i++) {
@@ -59,8 +63,16 @@ export function frameSeries(grid: TimeGrid): FrameSeries {
     sun.set(v.sun, i * 3);
     earth.set(v.earth, i * 3);
   }
-  const fs = { ...grid, sun, earth };
-  if (frameCache.size > 12) frameCache.delete(frameCache.keys().next().value!);
+  return { ...grid, sun, earth };
+}
+
+/** Cached `computeFrameSeries`: scenarios and sites that share a grid share the ephemeris. */
+export function frameSeries(grid: TimeGrid): FrameSeries {
+  const key = `${grid.t0}|${grid.stepMs}|${grid.n}`;
+  const hit = frameCache.get(key);
+  if (hit) return hit;
+  const fs = computeFrameSeries(grid);
+  if (frameCache.size >= FRAME_CACHE_SIZE) frameCache.delete(frameCache.keys().next().value!);
   frameCache.set(key, fs);
   return fs;
 }
@@ -193,6 +205,16 @@ export function complement(intervals: Interval[], t0: number, t1: number): Inter
   return out;
 }
 
+/**
+ * Viability index, 0..100: energy (40%), continuity of power i.e. short nights
+ * (25%, a night of 14 days or more scores zero) and communications (35%).
+ * A heuristic for ranking, not a mission criterion.
+ */
+export function scoreOf(sunShare: number, longestDarkMs: number, earthShare: number): number {
+  const darkPenalty = Math.min(1, longestDarkMs / (14 * 86400e3));
+  return Math.round(100 * (0.4 * sunShare + 0.25 * (1 - darkPenalty) + 0.35 * earthShare));
+}
+
 const total = (ivs: Interval[]) => ivs.reduce((s, iv) => s + iv.end - iv.start, 0);
 const longest = (ivs: Interval[]) => ivs.reduce((m, iv) => Math.max(m, iv.end - iv.start), 0);
 
@@ -236,9 +258,7 @@ export function metrics(s: SiteSeries): Metrics {
   const earthShare = total(earthIntervals) / spanMs;
   const bothShare = total(bothIntervals) / spanMs;
   const longestDarkMs = longest(complement(sunIntervals, t0, t1));
-  // Score: energy (40), continuity of power i.e. short nights (25), comms (35).
-  const darkPenalty = Math.min(1, longestDarkMs / (14 * 86400e3));
-  const score = Math.round(100 * (0.4 * sunShare + 0.25 * (1 - darkPenalty) + 0.35 * earthShare));
+  const score = scoreOf(sunShare, longestDarkMs, earthShare);
   return {
     spanMs,
     sunIntervals,
@@ -275,9 +295,9 @@ export function nextEvent(intervals: Interval[], now: number, windowEnd: number)
 }
 
 /** Per-day shares for the year calendar: [sunShare, earthShare] for each day in the grid. */
-export function dailyShares(s: SiteSeries): { sun: Float32Array; earth: Float32Array; t0: number; days: number } {
+export function dailyShares(s: SiteSeries, maxDays = Infinity): { sun: Float32Array; earth: Float32Array; t0: number; days: number } {
   const perDay = Math.round(86400e3 / s.stepMs);
-  const days = Math.floor(s.n / perDay);
+  const days = Math.min(maxDays, Math.floor(s.n / perDay));
   const sun = new Float32Array(days);
   const earth = new Float32Array(days);
   for (let d = 0; d < days; d++) {
@@ -292,4 +312,98 @@ export function dailyShares(s: SiteSeries): { sun: Float32Array; earth: Float32A
     earth[d] = b / perDay;
   }
   return { sun, earth, t0: s.t0, days };
+}
+
+// ---------------------------------------------------------------- best landing dates
+
+export interface WindowScores {
+  t0: number;
+  /** Number of candidate landing days, one per day from t0. */
+  days: number;
+  durationDays: number;
+  sunShare: Float32Array;
+  earthShare: Float32Array;
+  longestDarkH: Float32Array;
+  /** Viability index of a mission that lands on each day. */
+  score: Float32Array;
+  /** 1 when the Sun is visible at the moment of landing. */
+  sunAtLanding: Uint8Array;
+}
+
+/**
+ * What a mission of `durationDays` would get if it landed at the start of each
+ * day of a long series (the year calendar). The windows of light and link are
+ * found once for the whole series; each landing day then only clips them, with
+ * a cursor that moves forward, so the cost grows linearly with the series.
+ */
+export function windowScores(series: SiteSeries, durationDays: number, maxDays = 366): WindowScores {
+  const DAY = 86400e3;
+  const perDay = Math.round(DAY / series.stepMs);
+  const span = durationDays * DAY;
+  const tEnd = series.t0 + (series.n - 1) * series.stepMs;
+  const days = Math.max(0, Math.min(maxDays, Math.floor((tEnd - series.t0 - span) / DAY) + 1));
+  const sunIntervals = intervalsAbove(series.sunFrac, series, SUN_THRESHOLD);
+  const earthIntervals = intervalsAbove(series.earthFrac, series, EARTH_THRESHOLD);
+
+  const out: WindowScores = {
+    t0: series.t0,
+    days,
+    durationDays,
+    sunShare: new Float32Array(days),
+    earthShare: new Float32Array(days),
+    longestDarkH: new Float32Array(days),
+    score: new Float32Array(days),
+    sunAtLanding: new Uint8Array(days),
+  };
+
+  let sunFrom = 0;
+  let earthFrom = 0;
+  for (let d = 0; d < days; d++) {
+    const a = series.t0 + d * DAY;
+    const b = a + span;
+    while (sunFrom < sunIntervals.length && sunIntervals[sunFrom].end <= a) sunFrom++;
+    while (earthFrom < earthIntervals.length && earthIntervals[earthFrom].end <= a) earthFrom++;
+
+    // Sunlight inside [a, b] and the longest gap between its windows.
+    let lit = 0;
+    let dark = 0;
+    let cursor = a;
+    for (let k = sunFrom; k < sunIntervals.length && sunIntervals[k].start < b; k++) {
+      const start = Math.max(a, sunIntervals[k].start);
+      const end = Math.min(b, sunIntervals[k].end);
+      dark = Math.max(dark, start - cursor);
+      lit += end - start;
+      cursor = end;
+    }
+    dark = Math.max(dark, b - cursor);
+
+    let linked = 0;
+    for (let k = earthFrom; k < earthIntervals.length && earthIntervals[k].start < b; k++) {
+      linked += Math.min(b, earthIntervals[k].end) - Math.max(a, earthIntervals[k].start);
+    }
+
+    out.sunShare[d] = lit / span;
+    out.earthShare[d] = linked / span;
+    out.longestDarkH[d] = dark / 3600e3;
+    out.score[d] = scoreOf(lit / span, dark, linked / span);
+    out.sunAtLanding[d] = series.sunFrac[d * perDay] > SUN_THRESHOLD ? 1 : 0;
+  }
+  return out;
+}
+
+/**
+ * The best landing days, best first. Picks are kept `minGapDays` apart so they
+ * are distinct options, and by default only days with the Sun up at landing
+ * qualify: most missions cannot land in the dark.
+ */
+export function bestDates(scores: WindowScores, { count = 5, minGapDays = 7, requireSun = true } = {}): number[] {
+  const order: number[] = [];
+  for (let d = 0; d < scores.days; d++) if (!requireSun || scores.sunAtLanding[d]) order.push(d);
+  order.sort((x, y) => scores.score[y] - scores.score[x] || x - y); // ties: the earliest date
+  const picked: number[] = [];
+  for (const d of order) {
+    if (picked.length >= count) break;
+    if (picked.every((p) => Math.abs(p - d) >= minGapDays)) picked.push(d);
+  }
+  return picked;
 }

@@ -29,7 +29,7 @@ describe.skipIf(!hasDem)('LOLA south-pole terrain', () => {
 
   it('walls in the floor of Shackleton on every side', () => {
     const h = computeHorizon(-89.66, 129.2, 2);
-    expect(h.model).toBe('lola-240m');
+    expect(h.model).toBe('lola');
     expect(Math.min(...h.elevationDeg)).toBeGreaterThan(15);
   });
 

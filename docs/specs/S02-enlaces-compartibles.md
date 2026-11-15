@@ -1,7 +1,7 @@
 ---
 id: S02
 titulo: Enlaces compartibles
-estado: pendiente
+estado: hecha
 dia: 1
 prioridad: imprescindible
 depende: S01
@@ -19,7 +19,8 @@ La consigna habla de coordinar equipos de ciencia e ingeniería. Hoy no hay form
 - La dirección del navegador refleja siempre el estado: escenarios, escenario activo, instante seleccionado, idioma, tipo de mapa y capa.
 - Un botón "Copiar enlace" copia esa dirección y confirma con "Enlace copiado".
 - Abrir el enlace en otro equipo muestra la misma comparación.
-- Si el enlace está dañado, la app abre con los valores por defecto y avisa: "El enlace no se pudo leer completo. Se muestran los valores por defecto."
+- Si el enlace está dañado, la app conserva lo que pudo leer, usa los valores por defecto para el resto y avisa: "El enlace no se pudo leer completo. Lo que faltaba se sustituyó por los valores por defecto."
+- Sin portapapeles disponible (por ejemplo, al abrir la app por http en la red local), se intenta la copia clásica; si tampoco funciona, se muestra el enlace para copiarlo a mano.
 
 ## Diseño
 
@@ -30,10 +31,11 @@ La consigna habla de coordinar equipos de ciencia e ingeniería. Hoy no hay form
   ?s=ridge@2026-11-14T00:00~30~2;-85.95,-2.93@2026-12-05T00:00~30~10&a=0&t=36&l=es&v=polar&m=sun
   ```
 
-  - `s`: escenarios separados por `;`, cada uno `sitio@alunizaje~días~mástil`. Un sitio del catálogo va por su id; uno propio, como `latitud,longitud` con tres decimales.
+  - `s`: escenarios separados por `;`, cada uno `sitio@alunizaje~días~mástil`. Un sitio del catálogo va por su id; uno propio, como `latitud,longitud` con cinco decimales (0.3 m). Con tres decimales el punto se movía hasta 16 m, y eso [cambiaba los resultados](../historial/2026-11-14-06-dieciseis-metros.md).
   - `a`: índice del escenario activo. `t`: horas desde el alunizaje. `l`, `v`, `m`: idioma, mapa y capa.
 - La dirección se actualiza con `history.replaceState`, con un retardo de 300 ms, y nunca durante la reproducción.
-- `decode` valida cada campo; lo que no entiende se descarta y se anota para el aviso.
+- `decode` valida cada campo; lo que no entiende se descarta y se anota para el aviso. Los parámetros desconocidos se ignoran sin aviso, para que un enlace de una versión posterior siga abriendo.
+- `toShared` y `fromShared` convierten entre los escenarios de la app y los del enlace. Un punto propio viaja como coordenadas y al abrir el enlace se llama "Custom N".
 
 ## Criterios de aceptación
 

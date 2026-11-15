@@ -1,7 +1,7 @@
 ---
 id: S01
 titulo: Escenarios comparables
-estado: pendiente
+estado: hecha
 dia: 1
 prioridad: imprescindible
 depende: -
@@ -23,7 +23,9 @@ La tabla de comparación solo admite sitios distintos con una misma fecha, durac
 - La tabla gana una columna "Alunizaje" con fecha, duración y mástil.
 - Las franjas de ventanas se alinean por día de misión: el día 0 es el alunizaje en todas las filas. Si las duraciones difieren, el eje abarca la más larga.
 - En el calendario anual, un clic mueve el alunizaje del escenario activo; un clic con Mayús añade un escenario nuevo en ese día.
+- Todo escenario nuevo queda activo, para verlo y ajustarlo enseguida.
 - Máximo seis escenarios. No se puede eliminar el último.
+- La comparación y el calendario ocupan el ancho completo, uno debajo del otro: con la columna de alunizaje y las acciones, la tabla ya no cabe en media pantalla.
 
 ## Diseño
 
