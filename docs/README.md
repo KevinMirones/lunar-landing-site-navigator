@@ -38,6 +38,7 @@ De lo más reciente a lo más antiguo.
 
 | Fecha | Entrada | Tipo |
 | --- | --- | --- |
+| 2026-11-15 | [Specs S08 a S16 implementadas, salvo S11](historial/2026-11-15-13-specs-s08-a-s16.md)<br>Energía, contacto, exportación, modo educativo, catálogo, sombra permanente, robustez y pruebas de navegador, en ramas apiladas. | hito |
 | 2026-11-14 | [Todas las specs pendientes, listas para implementar](historial/2026-11-14-12-specs-completas-y-plan.md)<br>S03 y S08 a S14 revisadas contra el código real, dos specs nuevas (S15 y S16) y un plan con orden, reparto y reglas. | decisión |
 | 2026-11-14 | [Paneles plegables, mapa ampliado y logo nuevo](historial/2026-11-14-11-paneles-plegables.md)<br>Cada sección se pliega y recuerda su estado; un botón deja el mapa a todo el ancho. Mezclado con S01 a S07 y ya en main. | hito |
 | 2026-11-14 | [Specs S06 y S07 implementadas](historial/2026-11-14-10-specs-s06-y-s07.md)<br>Terreno de 20 a 80 m, horizontes precalculados y validación contra los mapas de NASA y Gläser et al. | hito |
