@@ -74,7 +74,7 @@ describe('scoring every possible landing day', () => {
     };
     run();
     const best = Math.min(run(), run(), run());
-    if (process.env.LUMINA_PERF === '1') expect(best).toBeLessThan(100); // npm run test:perf (S03)
+    if (import.meta.env.LUMINA_PERF === '1') expect(best).toBeLessThan(100); // npm run test:perf (S03)
   });
 });
 
