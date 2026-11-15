@@ -1833,3 +1833,106 @@ button.toggle.focus[aria-pressed='true'] {
     width: auto;
   }
 }
+
+/* ---------- exports and printed report (S10) ---------- */
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.export-buttons button {
+  height: 30px;
+  padding: 0 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.export-buttons button:hover:not(:disabled) {
+  border-color: var(--dust-3);
+}
+.export-buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.report {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+:root {
+    color-scheme: light;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  /* Only the report is printed: the app is dark and built for a screen. */
+  body > :not(.report) {
+    display: none !important;
+  }
+  .report {
+    display: block;
+    width: 100%;
+    color: #111;
+    font-size: 10.5px;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report h1 {
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+  .report-link {
+    word-break: break-all;
+    color: #333;
+  }
+  .report table {
+    width: 100%;
+    margin: 10px 0;
+    border-collapse: collapse;
+  }
+  .report th,
+  .report td {
+    padding: 5px 6px;
+    border-bottom: 1px solid #bbb;
+    text-align: left;
+    vertical-align: top;
+  }
+  .report thead th {
+    font-size: 9.5px;
+    color: #444;
+    border-bottom: 1.5px solid #333;
+  }
+  .report tbody th span,
+  .report td span {
+    display: block;
+    color: #555;
+    font-weight: 400;
+  }
+  .report-strip {
+    width: 28%;
+  }
+  .report .strip-row {
+    background: #e6e6e6;
+  }
+  .report .strip-row u {
+    background: #cfcfcf;
+  }
+  .report .strip i.sun {
+    background: #d99a00;
+  }
+  .report .strip i.earth {
+    background: #1f78c8;
+  }
+  .report footer p {
+    margin-top: 6px;
+    color: #333;
+  }
+}

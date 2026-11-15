@@ -25,6 +25,7 @@ import { decode, encode, fromShared, toShared, type SharedState } from './lib/ur
 import { LangContext, fetchHeightmap, fetchHorizon, fmtDate, fromInput, toInput, useMedia, useStoredState, type Heightmap } from './lib/util';
 import { Chevron, Collapse, FocusIcon, SectionToggle } from './components/Collapse';
 import { Comms } from './components/Comms';
+import { ExportButtons } from './components/Export';
 import { Globe } from './components/Globe';
 import { BestDates, Compare, SiteList, Status, YearCalendar, type ScenarioRow } from './components/Panels';
 import { Panorama } from './components/Panorama';
@@ -486,6 +487,8 @@ export default function App() {
     [scenarios, siteOf, analyses, powers, contacts],
   );
   const inUse = useMemo(() => scenarios.map((s) => s.siteId), [scenarios]);
+  // Terrain used by each scenario, for the printed report (S10).
+  const reportHorizons = useMemo(() => new Map(scenarios.map((sc) => [sc.id, analyses.get(sc.id)?.horizon])), [scenarios, analyses]);
   const span = maxSpanMs(scenarios);
   const polarAvailable = heightmap && heightmap !== 'loading';
 
@@ -753,6 +756,7 @@ export default function App() {
           <div className="lower-block">
             <div className="block-head">
               <h2>{tr('Comparar escenarios', 'Compare scenarios')}</h2>
+              <ExportButtons rows={rows} horizons={reportHorizons} spanMs={span} link={link()} comms={comms} />
               <SectionToggle open={panels.compare} controls="compare-body" label={tr('la comparación', 'the comparison')} onToggle={() => togglePanel('compare')} />
             </div>
             <Collapse id="compare-body" open={panels.compare}>
